@@ -30,17 +30,21 @@ jobs:
           go build -ldflags "-X main.debugDefault=1" -o dist/fastype-debug.exe ./cmd/fastype
         shell: bash
 
+      - name: Package zip
+        run: Compress-Archive -Path dist/fastype.exe, dist/fastype-debug.exe -DestinationPath dist/fastype-windows-amd64.zip
+        shell: pwsh
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: fastype-windows-amd64
-          path: dist/*.exe
+          path: dist/fastype-windows-amd64.zip
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: dist/fastype-windows-amd64.zip
 
   build-macos:
     runs-on: macos-latest
@@ -71,6 +75,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/*.dmg
-            dist/fastype-macos-universal
+          files: dist/*.dmg
