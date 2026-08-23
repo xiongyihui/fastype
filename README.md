@@ -1,5 +1,7 @@
 # fastype
 
+**简体中文** | [English](README.en.md)
+
 [![build](https://github.com/xiongyihui/fastype/actions/workflows/build.yml/badge.svg)](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)
 
 **fastype** 是一个 Windows 键盘增强工具：让普通键盘学会「长按」与「分层」。
