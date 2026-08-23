@@ -1,41 +1,58 @@
-package main
+package engine_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
+
+	"fastype/internal/engine"
+	"fastype/internal/keys"
 )
 
-// 构造与 kb.py 默认配置等价的引擎：
+func vk(name string) keys.VK {
+	v, ok := keys.VkOf(name)
+	if !ok {
+		panic("未知键名: " + name)
+	}
+	return v
+}
+
+func combo(names ...string) []keys.VK {
+	out := make([]keys.VK, len(names))
+	for i, n := range names {
+		out[i] = vk(n)
+	}
+	return out
+}
+
+func tapHold(tap string, hold engine.Hold) *engine.Binding {
+	return &engine.Binding{Kind: engine.BindTapHold, Tap: combo(tap), Hold: hold}
+}
+
+func keyBind(names ...string) *engine.Binding {
+	return &engine.Binding{Kind: engine.BindCombo, Combo: combo(names...)}
+}
+
+// testEngine 构造与默认配置等价的引擎（不经 JSON，直接给编译后的结构）：
 // 层0: d=tap_hold(切层1), ;=tap_hold(ctrl), '=tap_hold(alt), caps lock=tap_hold(ctrl)
 // 层1: hjkl=方向键, u/n=翻页, y/m=home/end, p=shift+insert, ;=backspace, '=esc
-func testEngine(t *testing.T) *Engine {
+func testEngine(t *testing.T) *engine.Engine {
 	t.Helper()
-	jsonCfg := `{
-	  "port": 8765, "tap_timeout_ms": 500,
-	  "layers": [
-	    {"keys": {
-	      "d": {"type":"tap_hold","tap":["d"],"hold":{"type":"layer","layer":1}},
-	      ";": {"type":"tap_hold","tap":[";"],"hold":{"type":"mods","mods":["ctrl"]}},
-	      "'": {"type":"tap_hold","tap":["'"],"hold":{"type":"mods","mods":["alt"]}},
-	      "caps lock": {"type":"tap_hold","tap":["caps lock"],"hold":{"type":"mods","mods":["ctrl"]}}
-	    }},
-	    {"keys": {
-	      "h":"left","j":"down","k":"up","l":"right",
-	      "u":"page up","n":"page down","y":"home","m":"end",
-	      "p":"shift+insert",";":"backspace","'":"esc"
-	    }}
-	  ]
-	}`
-	cfg, err := parseConfigBytes([]byte(jsonCfg))
-	if err != nil {
-		t.Fatalf("解析默认配置失败: %v", err)
+	l0 := map[keys.VK]*engine.Binding{
+		vk("d"):         tapHold("d", engine.Hold{Kind: engine.HoldLayer, Layer: 1}),
+		vk(";"):         tapHold(";", engine.Hold{Kind: engine.HoldMods, Mods: combo("ctrl")}),
+		vk("'"):         tapHold("'", engine.Hold{Kind: engine.HoldMods, Mods: combo("alt")}),
+		vk("caps lock"): tapHold("caps lock", engine.Hold{Kind: engine.HoldMods, Mods: combo("ctrl")}),
 	}
-	compiled, err := cfg.Compile()
-	if err != nil {
-		t.Fatalf("编译失败: %v", err)
+	l1 := map[keys.VK]*engine.Binding{
+		vk("h"): keyBind("left"), vk("j"): keyBind("down"), vk("k"): keyBind("up"), vk("l"): keyBind("right"),
+		vk("u"): keyBind("page up"), vk("n"): keyBind("page down"), vk("y"): keyBind("home"), vk("m"): keyBind("end"),
+		vk("p"): keyBind("shift", "insert"), vk(";"): keyBind("backspace"), vk("'"): keyBind("esc"),
 	}
-	return NewEngine(compiled)
+	return engine.NewEngine(&engine.Compiled{
+		Layers:  []map[keys.VK]*engine.Binding{l0, l1},
+		Timeout: 500 * time.Millisecond,
+	})
 }
 
 type ev struct {
@@ -47,16 +64,12 @@ type ev struct {
 var base = time.Now()
 
 // feed 依次注入事件，收集全部合成效果，返回 "d↓"、"ctrl↑" 形式的切片。
-func feed(e *Engine, events ...ev) []string {
+func feed(e *engine.Engine, events ...ev) []string {
 	var out []string
 	for _, x := range events {
-		vk, ok := vkOf(x.name)
-		if !ok {
-			panic("未知键名: " + x.name)
-		}
-		_, fx := e.OnEvent(Event{VK: vk, Down: x.down, T: base.Add(time.Duration(x.ms) * time.Millisecond)})
+		_, fx := e.OnEvent(engine.Event{VK: vk(x.name), Down: x.down, T: base.Add(time.Duration(x.ms) * time.Millisecond)})
 		for _, f := range fx {
-			out = append(out, keyName(f.VK)+arrow(f.Down))
+			out = append(out, keys.Name(f.VK)+arrow(f.Down))
 		}
 	}
 	return out
@@ -161,7 +174,7 @@ func TestHoldLayerRepeatIgnored(t *testing.T) {
 	got := feed(e,
 		ev{"d", true, 0},
 		ev{"h", true, 100}, ev{"h", false, 150}, // 触发 hold 判定
-		ev{"d", true, 300},                     // d 的自动重复
+		ev{"d", true, 300},                      // d 的自动重复
 		ev{"j", true, 320}, ev{"j", false, 360}, // 层仍应生效
 		ev{"d", false, 400})
 	assertEq(t, got, []string{"left↓", "left↑", "down↓", "down↑"}, "层键重复不应破坏切层状态")
@@ -169,22 +182,14 @@ func TestHoldLayerRepeatIgnored(t *testing.T) {
 
 func TestPassthroughUnmapped(t *testing.T) {
 	e := testEngine(t)
-	sup, fx := e.OnEvent(Event{VK: mustVK("a"), Down: true, T: base})
+	sup, fx := e.OnEvent(engine.Event{VK: vk("a"), Down: true, T: base})
 	if sup || len(fx) != 0 {
 		t.Fatalf("未映射的键应透传: sup=%v fx=%v", sup, fx)
 	}
-	sup, fx = e.OnEvent(Event{VK: mustVK("a"), Down: false, T: base})
+	sup, fx = e.OnEvent(engine.Event{VK: vk("a"), Down: false, T: base})
 	if sup || len(fx) != 0 {
 		t.Fatalf("未映射键的抬起应透传: sup=%v fx=%v", sup, fx)
 	}
-}
-
-func mustVK(name string) VK {
-	vk, ok := vkOf(name)
-	if !ok {
-		panic(name)
-	}
-	return vk
 }
 
 func TestComboOutput(t *testing.T) {
@@ -221,21 +226,14 @@ func TestQueuedPassthroughSynthesized(t *testing.T) {
 }
 
 func TestLayerModsImmediate(t *testing.T) {
-	jsonCfg := `{
-	  "layers": [
-	    {"keys": {"x": {"type":"layer_mods","mods":["ctrl"],"layer":1}}},
-	    {"keys": {"h": "left"}}
-	  ]
-	}`
-	cfg, err := parseConfigBytes([]byte(jsonCfg))
-	if err != nil {
-		t.Fatal(err)
+	l0 := map[keys.VK]*engine.Binding{
+		vk("x"): {Kind: engine.BindLayerMods, Mods: combo("ctrl"), Layer: 1},
 	}
-	compiled, err := cfg.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	e := NewEngine(compiled)
+	l1 := map[keys.VK]*engine.Binding{vk("h"): keyBind("left")}
+	e := engine.NewEngine(&engine.Compiled{
+		Layers:  []map[keys.VK]*engine.Binding{l0, l1},
+		Timeout: 500 * time.Millisecond,
+	})
 	got := feed(e,
 		ev{"x", true, 0},
 		ev{"h", true, 50}, ev{"h", false, 80},
@@ -250,22 +248,4 @@ func TestCapsLockTapHold(t *testing.T) {
 	e := testEngine(t)
 	got := feed(e, ev{"caps lock", true, 0}, ev{"caps lock", false, 100})
 	assertEq(t, got, []string{"caps lock↓", "caps lock↑"}, "caps lock 快速点按应原样输出")
-}
-
-func TestConfigValidation(t *testing.T) {
-	bad := []string{
-		`{"layers": [{"keys": {"d": "nosuchkey"}}]}`,                       // 未知键名
-		`{"layers": [{"keys": {"d": {"type":"tap_hold","tap":["d"],"hold":{"type":"layer","layer":5}}}}]}`, // 层越界
-		`{"layers": []}`,                                                    // 空层
-		`{"layers": [{"keys": {"d": {"type":"wat"}}}]}`,                     // 未知类型
-	}
-	for _, s := range bad {
-		cfg, err := parseConfigBytes([]byte(s))
-		if err == nil {
-			_, err = cfg.Compile()
-		}
-		if err == nil {
-			t.Fatalf("配置应当校验失败: %s", s)
-		}
-	}
 }

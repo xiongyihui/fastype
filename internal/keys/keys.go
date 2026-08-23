@@ -1,4 +1,4 @@
-package main
+package keys
 
 // VK 是规范化后的 Windows 虚拟键码。
 // 左右修饰键统一合并为左侧键码（shift/ctrl/alt/windows），与 kb.py 的命名保持一致。
@@ -83,8 +83,8 @@ func init() {
 	}
 }
 
-// normalizeVK 把钩子看到的原始 VK 规范化；无法识别返回 0（调用方应放行）。
-func normalizeVK(raw uint16) VK {
+// NormalizeVK 把钩子看到的原始 VK 规范化；无法识别返回 0（调用方应放行）。
+func NormalizeVK(raw uint16) VK {
 	switch raw {
 	case 0xA1: // right shift
 		return vkLShift
@@ -102,17 +102,17 @@ func normalizeVK(raw uint16) VK {
 	return vk
 }
 
-func vkOf(name string) (VK, bool) {
+func VkOf(name string) (VK, bool) {
 	vk, ok := nameToVK[name]
 	return vk, ok
 }
 
-func keyName(vk VK) string { return vkToName[vk] }
+func Name(vk VK) string { return vkToName[vk] }
 
 
-// isExtendedVK 返回注入该键时是否需要 KEYEVENTF_EXTENDEDKEY，
+// IsExtendedVK 返回注入该键时是否需要 KEYEVENTF_EXTENDEDKEY，
 // 否则方向键/Insert 等会被部分应用识别为小键盘键。
-func isExtendedVK(vk VK) bool {
+func IsExtendedVK(vk VK) bool {
 	switch vk {
 	case vkPageUp, vkPageDown, vkEnd, vkHome, vkLeft, vkUp, vkRight, vkDown,
 		vkInsert, vkDelete, vkPrintScr, vkLWin, vkApps, 0x6F /* keypad / */:

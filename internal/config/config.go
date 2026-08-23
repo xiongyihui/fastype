@@ -1,14 +1,24 @@
-package main
+package config
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"fastype/internal/engine"
+	"fastype/internal/keys"
 )
+
+//go:embed default.json
+var defaultJSON []byte
+
+// DefaultJSON 返回内置的默认配置（首次启动时生成 config.json 用）。
+func DefaultJSON() []byte { return defaultJSON }
 
 // ---------- 配置文件 JSON 模型 ----------
 //
@@ -207,7 +217,7 @@ func parseBindingJSON(raw json.RawMessage) (*BindingJSON, error) {
 
 // ---------- 加载 / 保存 ----------
 
-func parseConfigBytes(b []byte) (*Config, error) {
+func ParseBytes(b []byte) (*Config, error) {
 	var cfg Config
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return nil, err
@@ -221,7 +231,7 @@ func parseConfigBytes(b []byte) (*Config, error) {
 	return &cfg, nil
 }
 
-func loadConfigFile(path string) (*Config, error) {
+func LoadFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -236,7 +246,7 @@ func loadConfigFile(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func saveConfigFile(path string, cfg *Config) error {
+func SaveFile(path string, cfg *Config) error {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
@@ -256,18 +266,13 @@ func saveConfigFile(path string, cfg *Config) error {
 
 // ---------- 编译为引擎可用的结构 ----------
 
-type Compiled struct {
-	Layers  []map[VK]*Binding
-	Timeout time.Duration
-}
-
-func parseVKCombo(parts []string, ctx string) ([]VK, error) {
+func parseVKCombo(parts []string, ctx string) ([]keys.VK, error) {
 	if len(parts) == 0 {
 		return nil, fmt.Errorf("%s为空", ctx)
 	}
-	vks := make([]VK, 0, len(parts))
+	vks := make([]keys.VK, 0, len(parts))
 	for _, p := range parts {
-		vk, ok := vkOf(p)
+		vk, ok := keys.VkOf(p)
 		if !ok {
 			return nil, fmt.Errorf("%s包含无法识别的键名 %q", ctx, p)
 		}
@@ -276,26 +281,26 @@ func parseVKCombo(parts []string, ctx string) ([]VK, error) {
 	return vks, nil
 }
 
-func (c *Config) Compile() (*Compiled, error) {
+func (c *Config) Compile() (*engine.Compiled, error) {
 	if len(c.Layers) == 0 {
 		return nil, fmt.Errorf("至少需要定义一个层")
 	}
 	if c.TapTimeoutMS < 0 || c.TapTimeoutMS > 10000 {
 		return nil, fmt.Errorf("tap_timeout_ms 取值应在 0~10000 之间")
 	}
-	compiled := &Compiled{
-		Layers:  make([]map[VK]*Binding, len(c.Layers)),
+	compiled := &engine.Compiled{
+		Layers:  make([]map[keys.VK]*engine.Binding, len(c.Layers)),
 		Timeout: time.Duration(c.TapTimeoutMS) * time.Millisecond,
 	}
 	for li, layer := range c.Layers {
-		m := make(map[VK]*Binding)
+		m := make(map[keys.VK]*engine.Binding)
 		if layer != nil {
 			for _, k := range layer.Keys {
 				b, err := compileBinding(k.Bind, len(c.Layers))
 				if err != nil {
 					return nil, fmt.Errorf("层 %d 的 %q: %w", li, k.Name, err)
 				}
-				vk, ok := vkOf(k.Name)
+				vk, ok := keys.VkOf(k.Name)
 				if !ok {
 					return nil, fmt.Errorf("层 %d 的按键名 %q 无法识别", li, k.Name)
 				}
@@ -307,7 +312,7 @@ func (c *Config) Compile() (*Compiled, error) {
 	return compiled, nil
 }
 
-func compileBinding(bj *BindingJSON, numLayers int) (*Binding, error) {
+func compileBinding(bj *BindingJSON, numLayers int) (*engine.Binding, error) {
 	if bj == nil {
 		return nil, fmt.Errorf("映射为空")
 	}
@@ -317,13 +322,13 @@ func compileBinding(bj *BindingJSON, numLayers int) (*Binding, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Binding{Kind: BindCombo, Combo: combo}, nil
+		return &engine.Binding{Kind: engine.BindCombo, Combo: combo}, nil
 	case "tap_hold":
 		tap, err := parseVKCombo(bj.Tap, "tap")
 		if err != nil {
 			return nil, err
 		}
-		b := &Binding{Kind: BindTapHold, Tap: tap}
+		b := &engine.Binding{Kind: engine.BindTapHold, Tap: tap}
 		if bj.Hold == nil {
 			return nil, fmt.Errorf("缺少 hold")
 		}
@@ -332,20 +337,20 @@ func compileBinding(bj *BindingJSON, numLayers int) (*Binding, error) {
 			if bj.Hold.Layer < 0 || bj.Hold.Layer >= numLayers {
 				return nil, fmt.Errorf("长按目标层 %d 不存在（当前共 %d 层）", bj.Hold.Layer, numLayers)
 			}
-			b.Hold = Hold{Kind: HoldLayer, Layer: bj.Hold.Layer}
+			b.Hold = engine.Hold{Kind: engine.HoldLayer, Layer: bj.Hold.Layer}
 		case "mods":
 			mods, err := parseVKCombo(bj.Hold.Mods, "hold.mods")
 			if err != nil {
 				return nil, err
 			}
-			b.Hold = Hold{Kind: HoldMods, Mods: mods}
+			b.Hold = engine.Hold{Kind: engine.HoldMods, Mods: mods}
 		default:
 			return nil, fmt.Errorf("hold.type 应为 layer 或 mods")
 		}
 		return b, nil
 	case "layer_mods":
 		// mods 允许为空：等价 QMK 的 MO(layer)，按住时仅切层
-		var mods []VK
+		var mods []keys.VK
 		if len(bj.Mods) > 0 {
 			var err error
 			mods, err = parseVKCombo(bj.Mods, "mods")
@@ -356,7 +361,7 @@ func compileBinding(bj *BindingJSON, numLayers int) (*Binding, error) {
 		if bj.Layer < 0 || bj.Layer >= numLayers {
 			return nil, fmt.Errorf("目标层 %d 不存在（当前共 %d 层）", bj.Layer, numLayers)
 		}
-		return &Binding{Kind: BindLayerMods, Mods: mods, Layer: bj.Layer}, nil
+		return &engine.Binding{Kind: engine.BindLayerMods, Mods: mods, Layer: bj.Layer}, nil
 	}
 	return nil, fmt.Errorf("未知绑定类型 %q", bj.Type)
 }

@@ -26,8 +26,8 @@ jobs:
       - name: Build
         run: |
           mkdir -p dist
-          go build -ldflags "-s -w -H windowsgui" -o dist/fastype.exe .
-          go build -ldflags "-X main.debugDefault=1" -o dist/fastype-debug.exe .
+          go build -ldflags "-s -w -H windowsgui" -o dist/fastype.exe ./cmd/fastype
+          go build -ldflags "-X main.debugDefault=1" -o dist/fastype-debug.exe ./cmd/fastype
         shell: bash
 
       - name: Upload artifact

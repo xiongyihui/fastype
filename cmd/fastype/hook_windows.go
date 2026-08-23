@@ -8,6 +8,9 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"fastype/internal/engine"
+	"fastype/internal/keys"
 )
 
 var (
@@ -72,7 +75,7 @@ func init() {
 	}
 }
 
-func sendEffects(fx []Effect) {
+func sendEffects(fx []engine.Effect) {
 	if len(fx) == 0 {
 		return
 	}
@@ -82,7 +85,7 @@ func sendEffects(fx []Effect) {
 		if !f.Down {
 			fl |= keyeventfKeyUp
 		}
-		if isExtendedVK(f.VK) {
+		if keys.IsExtendedVK(f.VK) {
 			fl |= keyeventfExtendedKey
 		}
 		inputs[i] = inputEvent{typ: inputKeyboard, ki: keybdInput{wVk: uint16(f.VK), dwFlags: fl}}
@@ -107,7 +110,7 @@ func keyboardHookProc(nCode int32, wParam uintptr, lParamPtr unsafe.Pointer) uin
 		// 自己（或其它程序）注入的事件直接放行，避免递归
 		return next()
 	}
-	vk := normalizeVK(uint16(info.vkCode))
+	vk := keys.NormalizeVK(uint16(info.vkCode))
 	if vk == 0 {
 		return next()
 	}
@@ -115,7 +118,7 @@ func keyboardHookProc(nCode int32, wParam uintptr, lParamPtr unsafe.Pointer) uin
 		return next()
 	}
 
-	ev := Event{VK: vk, Down: wParam == wmKeyDown || wParam == wmSysKeyDown, T: time.Now()}
+	ev := engine.Event{VK: vk, Down: wParam == wmKeyDown || wParam == wmSysKeyDown, T: time.Now()}
 	engineMu.Lock()
 	suppressed, fx := eng.OnEvent(ev)
 	engineMu.Unlock()

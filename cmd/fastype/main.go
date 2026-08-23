@@ -3,7 +3,6 @@
 package main
 
 import (
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,13 +13,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+
+	"fastype/internal/config"
+	"fastype/internal/engine"
+	"fastype/internal/ui"
 )
-
-//go:embed web/index.html
-var indexHTML []byte
-
-//go:embed config.default.json
-var defaultConfigJSON []byte
 
 var version = "0.1.0"
 
@@ -28,17 +25,74 @@ var version = "0.1.0"
 var debugDefault = "0"
 
 var (
-	eng       *Engine
+	eng       *engine.Engine
 	engineMu  sync.Mutex // 保护 eng / appConfig / cfgPath
-	appConfig *Config
+	appConfig *config.Config
 	cfgPath   string
 
 	pausedFlag atomic.Bool
 	dryRun     bool
 	debugOn    bool
 	mainTID    atomic.Uintptr
-	httpSrv    *http.Server
 )
+
+// apiHandler 实现 internal/ui 的 HTTP API，把请求转交给本包持有的状态。
+type apiHandler struct{}
+
+func (apiHandler) Config() any {
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	return appConfig
+}
+
+func (apiHandler) SaveConfigJSON(data []byte) error {
+	newCfg, err := config.ParseBytes(data)
+	if err != nil {
+		return fmt.Errorf("配置格式错误: %w", err)
+	}
+	compiled, err := newCfg.Compile()
+	if err != nil {
+		return fmt.Errorf("配置校验失败: %w", err)
+	}
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	if err := config.SaveFile(cfgPath, newCfg); err != nil {
+		return fmt.Errorf("写入配置文件失败: %w", err)
+	}
+	fx := eng.Reload(compiled)
+	sendEffects(fx) // 释放热更新前按住的合成键
+	appConfig = newCfg
+	logf("配置已热更新 (%s)", cfgPath)
+	return nil
+}
+
+func (apiHandler) Status() map[string]any {
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	return map[string]any{
+		"running":  !pausedFlag.Load(),
+		"paused":   pausedFlag.Load(),
+		"port":     appConfig.Port,
+		"layers":   len(appConfig.Layers),
+		"dry_run":  dryRun,
+		"version":  version,
+		"config":   cfgPath,
+	}
+}
+
+func (apiHandler) SetPaused(paused bool) map[string]any {
+	pausedFlag.Store(paused)
+	// 让主线程同步托盘提示
+	if t := mainTID.Load(); t != 0 {
+		pPostThreadMessageW.Call(t, wmAppTrayCmd, cmdRefreshTip, 0)
+	}
+	if paused {
+		logf("按键映射已暂停（来自 Web UI）")
+	} else {
+		logf("按键映射已恢复（来自 Web UI）")
+	}
+	return apiHandler{}.Status()
+}
 
 func logf(format string, args ...any) {
 	if debugOn {
@@ -177,16 +231,16 @@ func main() {
 	}
 
 	cfgPath = resolveConfigPath(explicitCfg)
-	cfg, err := loadConfigFile(cfgPath)
+	cfg, err := config.LoadFile(cfgPath)
 	if err != nil {
 		fatalf("%v", err)
 	}
 	if cfg == nil {
-		cfg, err = parseConfigBytes(defaultConfigJSON)
+		cfg, err = config.ParseBytes(config.DefaultJSON())
 		if err != nil {
 			fatalf("内置默认配置错误: %v", err)
 		}
-		if err := saveConfigFile(cfgPath, cfg); err != nil {
+		if err := config.SaveFile(cfgPath, cfg); err != nil {
 			fatalf("创建默认配置 %s 失败: %v", cfgPath, err)
 		}
 		fmt.Printf("已生成默认配置: %s\n", cfgPath)
@@ -196,7 +250,7 @@ func main() {
 		fatalf("配置 %s 无效: %v", cfgPath, err)
 	}
 
-	eng = NewEngine(compiled)
+	eng = engine.NewEngine(compiled)
 	eng.Logf = logf
 	appConfig = cfg
 
@@ -204,7 +258,7 @@ func main() {
 		fatalf("fastype 已在运行（端口 %d）。请先从托盘菜单退出旧实例，或访问 http://127.0.0.1:%d/", cfg.Port, cfg.Port)
 	}
 
-	actualPort, err := startServer(cfg.Port)
+	actualPort, err := ui.Start(cfg.Port, apiHandler{})
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -228,6 +282,6 @@ func main() {
 	if !dryRun {
 		sendEffects(fx)
 	}
-	stopServer()
+	ui.Stop()
 	logf("fastype 已退出")
 }

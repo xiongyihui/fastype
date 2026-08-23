@@ -121,8 +121,8 @@ fastype（自启快捷方式同理，在任务计划程序里以最高权限创�
 
 ```
 go test ./...
-go build -ldflags "-s -w -H windowsgui" -o dist\fastype.exe .
-go build -ldflags "-X main.debugDefault=1" -o dist\fastype-debug.exe .
+go build -ldflags "-s -w -H windowsgui" -o dist\fastype.exe .\cmd\fastype
+go build -ldflags "-X main.debugDefault=1" -o dist\fastype-debug.exe .\cmd\fastype
 ```
 
 `fastype.exe` 日常使用（无窗口后台运行）；`fastype-debug.exe` 带控制台，

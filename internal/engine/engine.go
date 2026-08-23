@@ -1,6 +1,10 @@
-package main
+package engine
 
-import "time"
+import (
+	"time"
+
+	"fastype/internal/keys"
+)
 
 // 引擎是 kb.py 处理逻辑的忠实移植：
 //
@@ -27,29 +31,29 @@ const (
 type Hold struct {
 	Kind  HoldKind
 	Layer int
-	Mods  []VK
+	Mods  []keys.VK
 }
 
 type Binding struct {
 	Kind  BindKind
-	Combo []VK // BindCombo
+	Combo []keys.VK // BindCombo
 
-	Tap  []VK // BindTapHold
+	Tap  []keys.VK // BindTapHold
 	Hold Hold
 
-	Mods  []VK // BindLayerMods
+	Mods  []keys.VK // BindLayerMods
 	Layer int  // BindLayerMods
 }
 
 // Effect 是需要通过 SendInput 合成注入的按键事件。
 type Effect struct {
-	VK  VK
+	VK  keys.VK
 	Down bool
 }
 
 // Event 是一次（已规范化的）物理按键事件。
 type Event struct {
-	VK   VK
+	VK   keys.VK
 	Down bool
 	T    time.Time
 }
@@ -66,21 +70,21 @@ const (
 
 type held struct {
 	kind heldKind
-	keys []VK
+	keys []keys.VK
 }
 
 type pendingDec struct {
-	vk VK
+	vk keys.VK
 	t0 time.Time
 	b  *Binding
 }
 
 type Engine struct {
-	layers  []map[VK]*Binding
+	layers  []map[keys.VK]*Binding
 	timeout time.Duration
 
 	Layer   int
-	held    map[VK]held
+	held    map[keys.VK]held
 	pending *pendingDec // 正在等待 tap/hold 判定的键
 	queue   []Event     // 判定期间积压的事件（先进先出）
 
@@ -91,7 +95,7 @@ func NewEngine(c *Compiled) *Engine {
 	return &Engine{
 		layers:  c.Layers,
 		timeout: c.Timeout,
-		held:    make(map[VK]held),
+		held:    make(map[keys.VK]held),
 	}
 }
 
@@ -124,7 +128,7 @@ func (e *Engine) ReleaseAll() []Effect {
 func (e *Engine) OnEvent(ev Event) (suppressed bool, fx []Effect) {
 	// 判定期间的自动重复按下直接吞掉（对应原版 on_key 开头的过滤）
 	if p := e.pending; p != nil && ev.Down && ev.VK == p.vk {
-		e.logf("忽略 %s 的自动重复", keyName(ev.VK))
+		e.logf("忽略 %s 的自动重复", keys.Name(ev.VK))
 		return true, nil
 	}
 	e.queue = append(e.queue, ev)
@@ -173,18 +177,18 @@ func (e *Engine) applyPending(tap bool) []Effect {
 	b := p.b
 	if tap {
 		e.held[p.vk] = held{heldCombo, b.Tap}
-		e.logf("%s 判定为点按 → %s", keyName(p.vk), comboString(b.Tap))
+		e.logf("%s 判定为点按 → %s", keys.Name(p.vk), comboString(b.Tap))
 		return presses(b.Tap)
 	}
 	switch b.Hold.Kind {
 	case HoldLayer:
 		e.Layer = b.Hold.Layer
 		e.held[p.vk] = held{kind: heldLayer}
-		e.logf("%s 判定为长按 → 切换到层 %d", keyName(p.vk), b.Hold.Layer)
+		e.logf("%s 判定为长按 → 切换到层 %d", keys.Name(p.vk), b.Hold.Layer)
 		return nil
 	default:
 		e.held[p.vk] = held{heldMods, b.Hold.Mods}
-		e.logf("%s 判定为长按 → 按住 %s", keyName(p.vk), comboString(b.Hold.Mods))
+		e.logf("%s 判定为长按 → 按住 %s", keys.Name(p.vk), comboString(b.Hold.Mods))
 		return presses(b.Hold.Mods)
 	}
 }
@@ -222,7 +226,7 @@ func (e *Engine) step(ev Event, queued bool) (fx []Effect, suppressed bool) {
 			return nil, false
 		case heldLayer:
 			e.Layer = 0
-			e.logf("层键 %s 抬起 → 回到层 0", keyName(ev.VK))
+			e.logf("层键 %s 抬起 → 回到层 0", keys.Name(ev.VK))
 			return nil, true
 		default: // heldCombo / heldMods / heldLayerMods
 			out := releases(h.keys)
@@ -237,7 +241,7 @@ func (e *Engine) step(ev Event, queued bool) (fx []Effect, suppressed bool) {
 	if h, ok := e.held[ev.VK]; ok {
 		switch h.kind {
 		case heldCombo:
-			e.logf("%s 自动重复 → %s", keyName(ev.VK), comboString(h.keys))
+			e.logf("%s 自动重复 → %s", keys.Name(ev.VK), comboString(h.keys))
 			return presses(h.keys), true
 		case heldNative:
 			return nil, false
@@ -250,28 +254,28 @@ func (e *Engine) step(ev Event, queued bool) (fx []Effect, suppressed bool) {
 	switch {
 	case b == nil: // 当前层没有映射
 		if queued { // 已被抑制，需要合成补发
-			e.held[ev.VK] = held{heldCombo, []VK{ev.VK}}
-			return presses([]VK{ev.VK}), true
+			e.held[ev.VK] = held{heldCombo, []keys.VK{ev.VK}}
+			return presses([]keys.VK{ev.VK}), true
 		}
 		e.held[ev.VK] = held{kind: heldNative}
 		return nil, false
 	case b.Kind == BindCombo:
 		e.held[ev.VK] = held{heldCombo, b.Combo}
-		e.logf("%s → %s", keyName(ev.VK), comboString(b.Combo))
+		e.logf("%s → %s", keys.Name(ev.VK), comboString(b.Combo))
 		return presses(b.Combo), true
 	case b.Kind == BindLayerMods:
 		e.held[ev.VK] = held{heldLayerMods, b.Mods}
 		e.Layer = b.Layer
-		e.logf("%s → 按住 %s 并切换到层 %d", keyName(ev.VK), comboString(b.Mods), b.Layer)
+		e.logf("%s → 按住 %s 并切换到层 %d", keys.Name(ev.VK), comboString(b.Mods), b.Layer)
 		return presses(b.Mods), true
 	default: // BindTapHold：进入判定
 		e.pending = &pendingDec{vk: ev.VK, t0: ev.T, b: b}
-		e.logf("%s 等待点按/长按判定…", keyName(ev.VK))
+		e.logf("%s 等待点按/长按判定…", keys.Name(ev.VK))
 		return nil, true
 	}
 }
 
-func (e *Engine) bindingAt(vk VK) *Binding {
+func (e *Engine) bindingAt(vk keys.VK) *Binding {
 	if e.Layer < 0 || e.Layer >= len(e.layers) {
 		return nil
 	}
@@ -284,7 +288,7 @@ func (e *Engine) logf(format string, args ...any) {
 	}
 }
 
-func presses(vks []VK) []Effect {
+func presses(vks []keys.VK) []Effect {
 	fx := make([]Effect, len(vks))
 	for i, vk := range vks {
 		fx[i] = Effect{VK: vk, Down: true}
@@ -292,7 +296,7 @@ func presses(vks []VK) []Effect {
 	return fx
 }
 
-func releases(vks []VK) []Effect {
+func releases(vks []keys.VK) []Effect {
 	fx := make([]Effect, len(vks))
 	for i, vk := range vks {
 		fx[len(vks)-1-i] = Effect{VK: vk, Down: false} // 反序释放，修饰键最后抬起
@@ -300,13 +304,19 @@ func releases(vks []VK) []Effect {
 	return fx
 }
 
-func comboString(vks []VK) string {
+func comboString(vks []keys.VK) string {
 	s := ""
 	for i, vk := range vks {
 		if i > 0 {
 			s += "+"
 		}
-		s += keyName(vk)
+		s += keys.Name(vk)
 	}
 	return s
+}
+
+// Compiled 是配置编译产物，也是引擎的输入。
+type Compiled struct {
+	Layers  []map[keys.VK]*Binding
+	Timeout time.Duration
 }
