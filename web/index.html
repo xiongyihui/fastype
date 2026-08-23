@@ -60,7 +60,15 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 18px; display: flex; flex-direction: column; gap: 14px;
   }
-  @media (max-width: 980px) { .layout { flex-direction: column; } aside.editor { width: 100%; position: static; } }
+  /* 中窄宽度改为键盘优先的单列布局：键盘全出血占满整页宽度，其余内容单独留边 */
+  @media (max-width: 1400px) {
+    .layout { flex-direction: column; max-width: none; align-items: stretch; padding: 0 0 70px; }
+    .toolbar { margin-left: 18px; margin-right: 18px; }
+    .kbd { border-radius: 0; }
+    .kbd-note { margin-left: 18px; margin-right: 18px; }
+    .card { margin-left: 18px; margin-right: 18px; }
+    aside.editor { width: auto; max-width: 720px; margin: 0 18px; position: static; }
+  }
 
   .card {
     background: var(--panel); border: 1px solid var(--line);
