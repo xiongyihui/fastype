@@ -356,6 +356,19 @@ const code2name = (() => {
 const MODS = ['ctrl', 'alt', 'shift', 'windows'];
 const MOD_NAME_SET = new Set(['ctrl','windows','alt','shift','menu','enter','tab','caps lock','backspace','esc','space']);
 
+/* ================= 平台感知（仅显示层，配置名保持跨平台一致） ================= */
+let PLATFORM = '';
+const isMac = () => PLATFORM === 'darwin';
+const KEYNAME_DISPLAY_MAC = { windows: 'command ⌘', alt: 'option ⌥', ctrl: 'ctrl ⌃', shift: 'shift ⇧' };
+const displayName = n => (isMac() && KEYNAME_DISPLAY_MAC[n]) || n;
+const MOD_LABELS = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift', windows: 'Win' };
+const MOD_LABELS_MAC = { ctrl: 'Ctrl', alt: 'Option ⌥', shift: 'Shift', windows: 'Command ⌘' };
+function applyPlatformLabels() {
+  const labels = isMac() ? MOD_LABELS_MAC : MOD_LABELS;
+  ['comboMods', 'tapMods', 'holdMods', 'lmMods'].forEach(id =>
+    $(id).querySelectorAll('input').forEach(c => { c.nextSibling.nodeValue = labels[c.value] || c.value; }));
+}
+
 /* ================= 布局模型（x/y/w/h 坐标，单位 u） ================= */
 function defaultLayout() {
   const rows = [
@@ -391,7 +404,7 @@ const $ = id => document.getElementById(id);
 /* ================= i18n 中英文切换 ================= */
 const I18N = {
   zh: {
-    running: '运行中', paused: '已暂停',
+    running: '运行中', paused: '已暂停', waitingPerm: '等待授权', hookFail: '监听启动失败',
     pauseBtn: '暂停映射', resumeBtn: '恢复映射', saveBtn: '保存并生效',
     layer0: '层 0 · 默认', layerN: '层 {n}', layersN: '{n} 层',
     addLayer: '＋ 层', delLayer: '删除当前层', viewList: '映射列表',
@@ -426,7 +439,7 @@ const I18N = {
     mappingPaused: '映射已暂停', mappingResumed: '映射已恢复',
   },
   en: {
-    running: 'Running', paused: 'Paused',
+    running: 'Running', paused: 'Paused', waitingPerm: 'Waiting for permission', hookFail: 'Hook failed',
     pauseBtn: 'Pause', resumeBtn: 'Resume', saveBtn: 'Save & Apply',
     layer0: 'Layer 0 · Base', layerN: 'Layer {n}', layersN: '{n} layers',
     addLayer: '+ Layer', delLayer: 'Delete Layer', viewList: 'Mappings',
@@ -503,7 +516,7 @@ function normalizeBind(b) {
   if (typeof b === 'string') return { type: 'key', keys: b.split('+').map(s => s.trim()).filter(Boolean) };
   return b || { type: 'key', keys: [] };
 }
-const comboText = keys => keys.join('+');
+const comboText = keys => keys.map(displayName).join('+');
 
 function capText(b) {
   b = normalizeBind(b);
@@ -528,13 +541,19 @@ function bindOf(name) {
   return layer.keys.find(([n]) => n === name);
 }
 function modsChecked(id) { return [...$(id).querySelectorAll('input:checked')].map(c => c.value); }
-function setModsChecked(id, mods) { $(id).querySelectorAll('input').forEach(c => c.checked = (mods || []).includes(c.value)); }
+// 配置里可能用 mac 风格别名（command/option），归一到复选框的规范值
+const MOD_ALIAS = { command: 'windows', cmd: 'windows', option: 'alt', opt: 'alt' };
+function setModsChecked(id, mods) {
+  const norm = (mods || []).map(m => MOD_ALIAS[m] || m);
+  $(id).querySelectorAll('input').forEach(c => c.checked = norm.includes(c.value));
+}
 
 /* ================= 虚拟键盘渲染 ================= */
 function keyLabel(k) {
   if (k.label) return k.label;
-  const L = { 'backspace':'⌫', 'enter':'⏎ enter', 'caps lock':'caps', 'windows':'win',
-              'ctrl':'ctrl', 'alt':'alt', 'shift':'shift', 'space':'space',
+  const L = { 'backspace':'⌫', 'enter':'⏎ enter', 'caps lock':'caps',
+              'windows': isMac() ? '⌘ cmd' : 'win',
+              'ctrl':'ctrl', 'alt': isMac() ? '⌥ opt' : 'alt', 'shift':'shift', 'space':'space',
               'left':'←', 'up':'↑', 'down':'↓', 'right':'→' };
   return L[k.name] || k.name || '';
 }
@@ -760,7 +779,7 @@ function attachCapture(input, modsContainerId) {
         if (e.ctrlKey) held.push('ctrl');
         if (e.altKey) held.push('alt');
         if (e.shiftKey) held.push('shift');
-        if (e.metaKey) held.push('windows');
+        if (e.metaKey) held.push(isMac() ? 'command' : 'windows');
         setModsChecked(modsContainerId, held);
       } else {
         setModsChecked(modsContainerId, []);
@@ -809,8 +828,15 @@ async function refreshStatus() {
   try {
     const j = await (await fetch('/api/status')).json();
     paused = !!j.paused;
-    $('statusPill').textContent = paused ? t('paused') : t('running');
-    $('statusPill').classList.toggle('paused', paused);
+    const prevPlatform = PLATFORM;
+    PLATFORM = j.platform || '';
+    if (PLATFORM !== prevPlatform) { applyPlatformLabels(); refreshAll(); }
+    const waiting = j.hook === false; // macOS 键盘监听未生效
+    $('statusPill').textContent = waiting
+      ? (j.trusted ? t('hookFail') : t('waitingPerm'))
+      : paused ? t('paused') : t('running');
+    $('statusPill').title = j.hook_error || '';
+    $('statusPill').classList.toggle('paused', paused || waiting);
     $('btnPause').textContent = paused ? t('resumeBtn') : t('pauseBtn');
     $('versionHint').textContent = `v${j.version} · ${t('layersN', j.layers)}`;
   } catch {}
