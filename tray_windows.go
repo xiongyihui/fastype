@@ -20,6 +20,7 @@ const (
 	nimfMessage = 0x01
 	nimfIcon    = 0x02
 	nimfTip     = 0x04
+	nimfInfo    = 0x10
 
 	wmAppTrayCmd    = 0x8001 // 主循环里的自定义消息：托盘菜单命令
 	trayCallback    = 0x8002 // 图标通知回调消息
@@ -35,11 +36,13 @@ const (
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
 	mfSeparator    = 0x0800
+	mfChecked      = 0x0008
 
 	cmdOpen        = 1
 	cmdTogglePause = 2
 	cmdQuit        = 3
 	cmdRefreshTip  = 4
+	cmdAutoStart   = 5
 )
 
 var (
@@ -238,10 +241,16 @@ func showTrayMenu(hwnd uintptr) {
 		pauseLabel = "恢复按键映射"
 	}
 	pause := mustUTF16(pauseLabel)
+	auto := mustUTF16("开机自启")
+	autoFlags := uintptr(0)
+	if autoStartEnabled() {
+		autoFlags = mfChecked
+	}
 	quit := mustUTF16("退出")
 
 	pAppendMenuW.Call(menu, 0, cmdOpen, uintptr(unsafe.Pointer(&open[0])))
 	pAppendMenuW.Call(menu, 0, cmdTogglePause, uintptr(unsafe.Pointer(&pause[0])))
+	pAppendMenuW.Call(menu, autoFlags, cmdAutoStart, uintptr(unsafe.Pointer(&auto[0])))
 	pAppendMenuW.Call(menu, mfSeparator, 0, 0)
 	pAppendMenuW.Call(menu, 0, cmdQuit, uintptr(unsafe.Pointer(&quit[0])))
 
@@ -275,6 +284,20 @@ func handleTrayCommand(cmd uintptr) {
 		postQuitToMain()
 	case cmdRefreshTip:
 		updateTrayTip()
+	case cmdAutoStart:
+		enable := !autoStartEnabled()
+		if err := autoStartSet(enable); err != nil {
+			logf("设置开机自启失败: %v", err)
+			showBalloon("开机自启", "设置失败: "+err.Error())
+			return
+		}
+		if enable {
+			logf("已开启开机自启")
+			showBalloon("开机自启已开启", "Fastype 将在登录 Windows 时自动启动")
+		} else {
+			logf("已关闭开机自启")
+			showBalloon("开机自启已关闭", "Fastype 不再随系统启动")
+		}
 	}
 }
 
@@ -287,4 +310,28 @@ func openConfigPage() {
 		0, 0, swShowNormal)
 	runtime.KeepAlive(verb)
 	runtime.KeepAlive(url)
+}
+
+// showBalloon 弹托盘气泡通知；发送后恢复结构体快照，不影响后续 NIM_MODIFY。
+func showBalloon(title, text string) {
+	if trayWnd == 0 {
+		return
+	}
+	saved := trayNID
+	setRunes(trayNID.szInfoTitle[:], title)
+	setRunes(trayNID.szInfo[:], text)
+	trayNID.uFlags = nimfInfo
+	pShellNotifyIcon.Call(nimModify, uintptr(unsafe.Pointer(&trayNID)))
+	trayNID = saved
+}
+
+func setRunes(dst []uint16, s string) {
+	runes := []rune(s)
+	if len(runes) > len(dst)-1 {
+		runes = runes[:len(dst)-1]
+	}
+	for i, r := range runes {
+		dst[i] = uint16(r)
+	}
+	dst[len(runes)] = 0
 }
