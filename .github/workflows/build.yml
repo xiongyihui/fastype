@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write # Release 步骤需要写权限创建 GitHub Release
     steps:
       - uses: actions/checkout@v4
 
