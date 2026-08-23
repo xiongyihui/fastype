@@ -117,6 +117,39 @@ var (
 // 生命周期与进程相同的 UTF-16 缓冲（作为 uintptr 存进结构体，必须保证不被回收）
 var trayClassName = mustUTF16("FastypeTrayWnd")
 
+// 托盘文案：跟随 Windows 系统显示语言（中文系统显示中文，其余显示英文）。
+// Web 配置界面的语言由页面右上角按钮切换，与此独立。
+var pGetUserDefaultUILanguage = kernel32.NewProc("GetUserDefaultUILanguage")
+
+type trayStrings struct {
+	open, pause, resume, autoStart, quit string
+	running, paused                      string
+	autoOnTitle, autoOnText              string
+	autoOffTitle, autoOffText            string
+}
+
+var tr = loadTrayStrings()
+
+func loadTrayStrings() trayStrings {
+	id, _, _ := pGetUserDefaultUILanguage.Call()
+	if id&0x3FF == 0x04 { // PRIMARYLANGID == LANG_CHINESE
+		return trayStrings{
+			open: "打开配置页面...", pause: "暂停按键映射", resume: "恢复按键映射",
+			autoStart: "开机自启", quit: "退出",
+			running: "运行中", paused: "已暂停",
+			autoOnTitle: "开机自启已开启", autoOnText: "Fastype 将在登录 Windows 时自动启动",
+			autoOffTitle: "开机自启已关闭", autoOffText: "Fastype 不再随系统启动",
+		}
+	}
+	return trayStrings{
+		open: "Open Config Page...", pause: "Pause Mapping", resume: "Resume Mapping",
+		autoStart: "Start with Windows", quit: "Exit",
+		running: "Running", paused: "Paused",
+		autoOnTitle: "Auto start enabled", autoOnText: "Fastype will start automatically when you sign in to Windows",
+		autoOffTitle: "Auto start disabled", autoOffText: "Fastype will no longer start with Windows",
+	}
+}
+
 func mustUTF16(s string) []uint16 {
 	w, err := syscall.UTF16FromString(s)
 	if err != nil {
@@ -192,9 +225,9 @@ func createTray() {
 }
 
 func setTrayTip() {
-	state := "运行中"
+	state := tr.running
 	if pausedFlag.Load() {
-		state = "已暂停"
+		state = tr.paused
 	}
 	tip := fmt.Sprintf("Fastype - %s", state)
 	runes := []rune(tip)
@@ -235,18 +268,18 @@ func showTrayMenu(hwnd uintptr) {
 	}
 	defer pDestroyMenu.Call(menu)
 
-	open := mustUTF16("打开配置页面...")
-	pauseLabel := "暂停按键映射"
+	open := mustUTF16(tr.open)
+	pauseLabel := tr.pause
 	if pausedFlag.Load() {
-		pauseLabel = "恢复按键映射"
+		pauseLabel = tr.resume
 	}
 	pause := mustUTF16(pauseLabel)
-	auto := mustUTF16("开机自启")
+	auto := mustUTF16(tr.autoStart)
 	autoFlags := uintptr(0)
 	if autoStartEnabled() {
 		autoFlags = mfChecked
 	}
-	quit := mustUTF16("退出")
+	quit := mustUTF16(tr.quit)
 
 	pAppendMenuW.Call(menu, 0, cmdOpen, uintptr(unsafe.Pointer(&open[0])))
 	pAppendMenuW.Call(menu, 0, cmdTogglePause, uintptr(unsafe.Pointer(&pause[0])))
@@ -293,10 +326,10 @@ func handleTrayCommand(cmd uintptr) {
 		}
 		if enable {
 			logf("已开启开机自启")
-			showBalloon("开机自启已开启", "Fastype 将在登录 Windows 时自动启动")
+			showBalloon(tr.autoOnTitle, tr.autoOnText)
 		} else {
 			logf("已关闭开机自启")
-			showBalloon("开机自启已关闭", "Fastype 不再随系统启动")
+			showBalloon(tr.autoOffTitle, tr.autoOffText)
 		}
 	}
 }

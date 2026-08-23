@@ -210,66 +210,67 @@
   <span class="pill" id="statusPill">…</span>
   <span class="ver" id="versionHint"></span>
   <div class="spacer"></div>
+  <button id="btnLang" class="mini ghost" title="Language / 语言"></button>
   <button id="btnPause" class="mini">暂停映射</button>
-  <button id="btnSave" class="primary mini">保存并生效</button>
+  <button id="btnSave" class="primary mini" data-i18n="saveBtn">保存并生效</button>
 </header>
 
 <div class="layout">
   <div class="col-main">
     <div class="toolbar">
       <div class="seg" id="layerSeg"></div>
-      <button class="mini ghost" id="btnAddLayer">＋ 层</button>
-      <button class="mini ghost danger" id="btnDelLayer">删除当前层</button>
+      <button class="mini ghost" id="btnAddLayer" data-i18n="addLayer">＋ 层</button>
+      <button class="mini ghost danger" id="btnDelLayer" data-i18n="delLayer">删除当前层</button>
       <div class="spacer"></div>
-      <button class="mini ghost" id="btnViewList">映射列表</button>
+      <button class="mini ghost" id="btnViewList" data-i18n="viewList">映射列表</button>
     </div>
 
     <div class="kbd" id="kbdWrap"><div class="kbd-inner" id="kbdView"></div></div>
-    <div class="kbd-note">点击键帽编辑该层映射 · 有映射的键显示为蓝色</div>
+    <div class="kbd-note" data-i18n="kbdNote">点击键帽编辑该层映射 · 有映射的键显示为蓝色</div>
 
     <div class="card" id="listView" hidden>
       <table>
-        <thead><tr><th style="width:120px">物理键</th><th>功能</th><th style="width:120px"></th></tr></thead>
+        <thead><tr><th style="width:120px" data-i18n="thKey">物理键</th><th data-i18n="thFn">功能</th><th style="width:120px"></th></tr></thead>
         <tbody id="keyRows"></tbody>
       </table>
-      <div class="empty" id="emptyHint" hidden>这一层还没有映射，点击键盘上的键添加</div>
+      <div class="empty" id="emptyHint" hidden data-i18n="emptyHint">这一层还没有映射，点击键盘上的键添加</div>
     </div>
 
     <details class="card">
-      <summary>测试区</summary>
-      <p class="hint" style="margin:0 0 6px">在这里试试映射效果（例如按住 <b style="color:var(--text)">d</b> 再按 <b style="color:var(--text)">h j k l</b>）：</p>
-      <textarea id="testArea" placeholder="点击这里开始输入…"></textarea>
+      <summary data-i18n="testTitle">测试区</summary>
+      <p class="hint" style="margin:0 0 6px" data-i18n="testHint">在这里试试映射效果（例如按住 <b style="color:var(--text)">d</b> 再按 <b style="color:var(--text)">h j k l</b>）：</p>
+      <textarea id="testArea" data-i18n-ph="testPh" placeholder="点击这里开始输入…"></textarea>
     </details>
   </div>
 
   <aside class="editor">
-    <div class="ed-head"><h2>全局设置</h2></div>
+    <div class="ed-head"><h2 data-i18n="globalSettings">全局设置</h2></div>
     <div class="field" style="flex-direction:row;align-items:center;gap:10px;display:flex">
-      <span style="white-space:nowrap">点按/长按阈值</span>
+      <span style="white-space:nowrap" data-i18n="tapThreshold">点按/长按阈值</span>
       <input type="number" id="tapTimeout" min="100" max="2000" step="50" style="width:64px">
       <span class="hint">ms</span>
     </div>
     <div class="divider"></div>
-    <div class="ed-head"><h2>按键编辑</h2><span class="key-chip" id="edKey" hidden></span></div>
-    <div class="ed-empty" id="edEmpty">
+    <div class="ed-head"><h2 data-i18n="keyEditor">按键编辑</h2><span class="key-chip" id="edKey" hidden></span></div>
+    <div class="ed-empty" id="edEmpty" data-i18n="edEmpty">
       在左侧键盘上点击任意键帽<br>编辑它在当前层的映射
     </div>
     <div class="ed-body" id="edBody" hidden>
       <div class="field">
-        <span>物理键（在真实键盘上按下）</span>
-        <input class="capture" id="capPhys" readonly placeholder="点击这里，然后按下一个键">
+        <span data-i18n="physKey">物理键（在真实键盘上按下）</span>
+        <input class="capture" id="capPhys" readonly data-i18n-ph="capturePh" placeholder="点击这里，然后按下一个键">
       </div>
       <div class="field">
-        <span>功能类型</span>
+        <span data-i18n="bindTypeLabel">功能类型</span>
         <select id="bindType">
-          <option value="key">映射为按键 / 组合键</option>
-          <option value="tap_hold">点按 / 长按（Tap-Hold）</option>
-          <option value="layer_mods">切层（可加修饰键，立即生效）</option>
+          <option value="key" data-i18n="optKey">映射为按键 / 组合键</option>
+          <option value="tap_hold" data-i18n="optTapHold">点按 / 长按（Tap-Hold）</option>
+          <option value="layer_mods" data-i18n="optLayerMods">切层（可加修饰键，立即生效）</option>
         </select>
       </div>
       <div id="secKey" class="field">
-        <span>输出按键</span>
-        <input class="capture" id="capKey" readonly placeholder="点击这里，然后按下一个键">
+        <span data-i18n="outKey">输出按键</span>
+        <input class="capture" id="capKey" readonly data-i18n-ph="capturePh" placeholder="点击这里，然后按下一个键">
         <div class="mods" id="comboMods">
           <label><input type="checkbox" value="ctrl">Ctrl</label>
           <label><input type="checkbox" value="alt">Alt</label>
@@ -279,8 +280,8 @@
       </div>
       <div id="secTapHold" style="display:grid;gap:14px">
         <div class="field">
-          <span>点按输出</span>
-          <input class="capture" id="capTap" readonly placeholder="点击这里，然后按下一个键">
+          <span data-i18n="tapOut">点按输出</span>
+          <input class="capture" id="capTap" readonly data-i18n-ph="capturePh" placeholder="点击这里，然后按下一个键">
           <div class="mods" id="tapMods">
             <label><input type="checkbox" value="ctrl">Ctrl</label>
             <label><input type="checkbox" value="alt">Alt</label>
@@ -289,11 +290,11 @@
           </div>
         </div>
         <div class="field">
-          <span>长按行为</span>
+          <span data-i18n="holdBeh">长按行为</span>
           <div style="display:flex;gap:8px">
             <select id="holdType">
-              <option value="layer">切换到层</option>
-              <option value="mods">按住修饰键</option>
+              <option value="layer" data-i18n="holdLayerOpt">切换到层</option>
+              <option value="mods" data-i18n="holdModsOpt">按住修饰键</option>
             </select>
             <select id="holdLayer"></select>
           </div>
@@ -306,7 +307,7 @@
         </div>
       </div>
       <div id="secLayerMods" class="field">
-        <span>按下时切换到</span>
+        <span data-i18n="lmTitle">按下时切换到</span>
         <select id="lmLayer"></select>
         <div class="mods" id="lmMods">
           <label><input type="checkbox" value="ctrl">Ctrl</label>
@@ -314,12 +315,12 @@
           <label><input type="checkbox" value="shift">Shift</label>
           <label><input type="checkbox" value="windows">Win</label>
         </div>
-        <span class="hint">立即生效（无点按判定）。修饰键可不勾选＝纯切层</span>
+        <span class="hint" data-i18n="lmHint">立即生效（无点按判定）。修饰键可不勾选＝纯切层</span>
       </div>
     </div>
     <div class="ed-foot" id="edFoot" hidden>
-      <button id="btnClear" class="danger mini">清除映射</button>
-      <button id="btnConfirm" class="primary">应用</button>
+      <button id="btnClear" class="danger mini" data-i18n="clearBtn">清除映射</button>
+      <button id="btnConfirm" class="primary" data-i18n="applyBtn">应用</button>
     </div>
   </aside>
 </div>
@@ -387,6 +388,108 @@ let selectedKey = null;
 
 const $ = id => document.getElementById(id);
 
+/* ================= i18n 中英文切换 ================= */
+const I18N = {
+  zh: {
+    running: '运行中', paused: '已暂停',
+    pauseBtn: '暂停映射', resumeBtn: '恢复映射', saveBtn: '保存并生效',
+    layer0: '层 0 · 默认', layerN: '层 {n}', layersN: '{n} 层',
+    addLayer: '＋ 层', delLayer: '删除当前层', viewList: '映射列表',
+    kbdNote: '点击键帽编辑该层映射 · 有映射的键显示为蓝色',
+    thKey: '物理键', thFn: '功能', edit: '编辑',
+    emptyHint: '这一层还没有映射，点击键盘上的键添加',
+    testTitle: '测试区',
+    testHint: '在这里试试映射效果（例如按住 <b style="color:var(--text)">d</b> 再按 <b style="color:var(--text)">h j k l</b>）：',
+    testPh: '点击这里开始输入…',
+    globalSettings: '全局设置', tapThreshold: '点按/长按阈值', keyEditor: '按键编辑',
+    edEmpty: '在左侧键盘上点击任意键帽<br>编辑它在当前层的映射',
+    physKey: '物理键（在真实键盘上按下）',
+    capturePh: '点击这里，然后按下一个键', listening: '按下要绑定的按键…（Esc 取消）',
+    bindTypeLabel: '功能类型',
+    optKey: '映射为按键 / 组合键', optTapHold: '点按 / 长按（Tap-Hold）', optLayerMods: '切层（可加修饰键，立即生效）',
+    outKey: '输出按键', tapOut: '点按输出', holdBeh: '长按行为',
+    holdLayerOpt: '切换到层', holdModsOpt: '按住修饰键',
+    lmTitle: '按下时切换到',
+    lmHint: '立即生效（无点按判定）。修饰键可不勾选＝纯切层',
+    clearBtn: '清除映射', applyBtn: '应用',
+    layerShort: '层',
+    tapWord: '点按', holdWord: '长按', none: '无',
+    switchLayer: '切换到层 {n}', holdModsAct: '按住 {mods}',
+    lmDesc: '按住 {mods} 并切换到层 {n}',
+    maxLayers: '最多支持 8 层',
+    delLayerConfirm: '删除层 {n}？', delLayerRefs: '注意：有 {n} 处映射引用了该层，删除后保存会校验失败。',
+    needOutKey: '请先捕获要输出的按键', needTapKey: '请先捕获点按输出的按键',
+    needHoldMods: '请至少勾选一个长按修饰键', needPhys: '请先指定物理键',
+    applied: '已应用到编辑（记得右上角保存）',
+    saveFail: '保存失败', saved: '已保存并即时生效 ✓',
+    loadFail: '加载配置失败', opFail: '操作失败',
+    mappingPaused: '映射已暂停', mappingResumed: '映射已恢复',
+  },
+  en: {
+    running: 'Running', paused: 'Paused',
+    pauseBtn: 'Pause', resumeBtn: 'Resume', saveBtn: 'Save & Apply',
+    layer0: 'Layer 0 · Base', layerN: 'Layer {n}', layersN: '{n} layers',
+    addLayer: '+ Layer', delLayer: 'Delete Layer', viewList: 'Mappings',
+    kbdNote: 'Click a keycap to edit its mapping on this layer · bound keys are highlighted',
+    thKey: 'Key', thFn: 'Action', edit: 'Edit',
+    emptyHint: 'No mappings on this layer yet — click a key on the keyboard to add one',
+    testTitle: 'Test Area',
+    testHint: 'Try your mappings here (e.g. hold <b style="color:var(--text)">d</b>, then press <b style="color:var(--text)">h j k l</b>):',
+    testPh: 'Click here and start typing…',
+    globalSettings: 'Global Settings', tapThreshold: 'Tap/Hold threshold', keyEditor: 'Key Editor',
+    edEmpty: 'Click any keycap on the keyboard<br>to edit its mapping on this layer',
+    physKey: 'Physical key (press it on your real keyboard)',
+    capturePh: 'Click here, then press a key', listening: 'Press a key to bind… (Esc to cancel)',
+    bindTypeLabel: 'Action type',
+    optKey: 'Map to key / combo', optTapHold: 'Tap / Hold (Tap-Hold)', optLayerMods: 'Momentary layer (+mods, immediate)',
+    outKey: 'Output key', tapOut: 'Tap output', holdBeh: 'Hold behavior',
+    holdLayerOpt: 'Switch to layer', holdModsOpt: 'Hold modifiers',
+    lmTitle: 'On press, switch to',
+    lmHint: 'Immediate (no tap detection). Leave modifiers unchecked for a pure layer switch',
+    clearBtn: 'Clear', applyBtn: 'Apply',
+    layerShort: 'L',
+    tapWord: 'Tap', holdWord: 'Hold', none: 'none',
+    switchLayer: 'switch to layer {n}', holdModsAct: 'hold {mods}',
+    lmDesc: 'Hold {mods} and switch to layer {n}',
+    maxLayers: 'Up to 8 layers',
+    delLayerConfirm: 'Delete layer {n}?', delLayerRefs: 'Note: {n} mappings reference this layer; saving will fail validation.',
+    needOutKey: 'Capture the output key first', needTapKey: 'Capture the tap output key first',
+    needHoldMods: 'Check at least one hold modifier', needPhys: 'Specify the physical key first',
+    applied: 'Applied to the draft (remember to save, top-right)',
+    saveFail: 'Save failed', saved: 'Saved and applied ✓',
+    loadFail: 'Failed to load config', opFail: 'Operation failed',
+    mappingPaused: 'Mappings paused', mappingResumed: 'Mappings resumed',
+  },
+};
+
+let lang = localStorage.getItem('fastype.lang') || ((navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+
+function t(key, ...args) {
+  let s = (I18N[lang] && I18N[lang][key]) ?? I18N.zh[key] ?? key;
+  ['n', 'mods'].forEach((ph, i) => {
+    if (args[i] !== undefined) s = s.split('{' + ph + '}').join(args[i]);
+  });
+  return s;
+}
+
+function applyLang() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  $('btnLang').textContent = lang === 'zh' ? 'EN' : '中文';
+  $('statusPill').textContent = paused ? t('paused') : t('running');
+  $('btnPause').textContent = paused ? t('resumeBtn') : t('pauseBtn');
+  refreshAll();
+  selectKey(selectedKey);
+  refreshStatus();
+}
+
+$('btnLang').onclick = () => {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('fastype.lang', lang);
+  applyLang();
+};
+
 function toast(msg, isErr) {
   const t = $('toast');
   t.textContent = msg;
@@ -406,17 +509,17 @@ function capText(b) {
   b = normalizeBind(b);
   if (b.type === 'key') return comboText(b.keys);
   if (b.type === 'tap_hold')
-    return comboText(b.tap) + ' / ' + (b.hold.type === 'layer' ? '层' + b.hold.layer : comboText(b.hold.mods) || '—');
-  return (comboText(b.mods) ? comboText(b.mods) + '+' : '') + '层' + b.layer;
+    return comboText(b.tap) + ' / ' + (b.hold.type === 'layer' ? t('layerShort') + b.hold.layer : comboText(b.hold.mods) || '—');
+  return (comboText(b.mods) ? comboText(b.mods) + '+' : '') + t('layerShort') + b.layer;
 }
 function describe(b) {
   b = normalizeBind(b);
   if (b.type === 'key') return comboText(b.keys);
   if (b.type === 'tap_hold') {
-    const hold = b.hold.type === 'layer' ? `长按 切换到层 ${b.hold.layer}` : `长按 按住 ${comboText(b.hold.mods)}`;
-    return `<b>点按</b> ${comboText(b.tap)} <span style="color:var(--faint)">·</span> <b>${hold}</b>`;
+    const hold = b.hold.type === 'layer' ? t('switchLayer', b.hold.layer) : t('holdModsAct', comboText(b.hold.mods));
+    return `<b>${t('tapWord')}</b> ${comboText(b.tap)} <span style="color:var(--faint)">·</span> <b>${t('holdWord')} ${hold}</b>`;
   }
-  if (b.type === 'layer_mods') return `按住 ${comboText(b.mods) || '<i>无</i>'} 并切换到层 ${b.layer}`;
+  if (b.type === 'layer_mods') return t('lmDesc', comboText(b.mods) || `<i>${t('none')}</i>`, b.layer);
   return '?';
 }
 
@@ -477,7 +580,7 @@ function renderSeg() {
   seg.innerHTML = '';
   cfg.layers.forEach((_, i) => {
     const b = document.createElement('button');
-    b.textContent = i === 0 ? '层 0 · 默认' : '层 ' + i;
+    b.textContent = i === 0 ? t('layer0') : t('layerN', i);
     b.className = i === activeLayer ? 'on' : '';
     b.onclick = () => { activeLayer = i; selectedKey = null; refreshAll(); };
     seg.appendChild(b);
@@ -495,7 +598,7 @@ function renderList() {
     tr.innerHTML = `
       <td><span class="key-chip">${escapeHtml(name)}</span></td>
       <td><span class="bind-desc">${describe(bind)}</span></td>
-      <td class="ops"><button class="mini ghost" data-op="edit">编辑</button></td>`;
+      <td class="ops"><button class="mini ghost" data-op="edit">${t('edit')}</button></td>`;
     tr.querySelector('[data-op=edit]').onclick = () => selectKey(name);
     tbody.appendChild(tr);
   });
@@ -511,7 +614,7 @@ $('btnViewList').onclick = () => {
 };
 
 $('btnAddLayer').onclick = () => {
-  if (cfg.layers.length >= 8) { toast('最多支持 8 层', true); return; }
+  if (cfg.layers.length >= 8) { toast(t('maxLayers'), true); return; }
   cfg.layers.push({ keys: [] });
   activeLayer = cfg.layers.length - 1;
   refreshAll();
@@ -521,7 +624,7 @@ $('btnDelLayer').onclick = () => {
     b = normalizeBind(b);
     return (b.hold && b.hold.layer === activeLayer) || (b.type === 'layer_mods' && b.layer === activeLayer);
   })).length;
-  if (!confirm(`删除层 ${activeLayer}？` + (n ? `\n\n注意：有 ${n} 处映射引用了该层，删除后保存会校验失败。` : ''))) return;
+  if (!confirm(t('delLayerConfirm', activeLayer) + (n ? '\n\n' + t('delLayerRefs', n) : ''))) return;
   cfg.layers.splice(activeLayer, 1);
   activeLayer = 0;
   selectKey(null);
@@ -569,7 +672,7 @@ function fillLayerSelect(sel) {
   sel.innerHTML = '';
   cfg.layers.forEach((_, i) => {
     const o = document.createElement('option');
-    o.value = i; o.textContent = '层 ' + i;
+    o.value = i; o.textContent = t('layerN', i);
     sel.appendChild(o);
   });
 }
@@ -587,20 +690,20 @@ $('bindType').onchange = syncEditorSections;
 $('holdType').onchange = syncEditorSections;
 
 function collectBind() {
-  const t = $('bindType').value;
-  if (t === 'key') {
+  const bt = $('bindType').value;
+  if (bt === 'key') {
     const key = $('capKey').value.trim();
-    if (!key) { toast('请先捕获要输出的按键', true); return null; }
+    if (!key) { toast(t('needOutKey'), true); return null; }
     return { type: 'key', keys: [...modsChecked('comboMods'), key] };
   }
-  if (t === 'tap_hold') {
+  if (bt === 'tap_hold') {
     const tapKey = $('capTap').value.trim();
-    if (!tapKey) { toast('请先捕获点按输出的按键', true); return null; }
+    if (!tapKey) { toast(t('needTapKey'), true); return null; }
     let hold;
     if ($('holdType').value === 'layer') hold = { type: 'layer', layer: +$('holdLayer').value };
     else {
       const mods = modsChecked('holdMods');
-      if (!mods.length) { toast('请至少勾选一个长按修饰键', true); return null; }
+      if (!mods.length) { toast(t('needHoldMods'), true); return null; }
       hold = { type: 'mods', mods };
     }
     return { type: 'tap_hold', tap: [...modsChecked('tapMods'), tapKey], hold };
@@ -610,7 +713,7 @@ function collectBind() {
 
 $('btnConfirm').onclick = () => {
   const name = $('capPhys').value.trim();
-  if (!name) { toast('请先指定物理键', true); return; }
+  if (!name) { toast(t('needPhys'), true); return; }
   const bind = collectBind();
   if (!bind) return;
   const layer = cfg.layers[activeLayer];
@@ -619,7 +722,7 @@ $('btnConfirm').onclick = () => {
   else layer.keys.push([name, bind]);
   selectedKey = name;
   refreshAll();
-  toast('已应用到编辑（记得右上角保存）');
+  toast(t('applied'));
 };
 $('btnClear').onclick = () => {
   const layer = cfg.layers[activeLayer];
@@ -634,7 +737,7 @@ function attachCapture(input, modsContainerId) {
   input.addEventListener('mousedown', e => e.preventDefault());
   input.addEventListener('click', () => {
     input._old = input.value;
-    input.value = '按下要绑定的按键…（Esc 取消）';
+    input.value = t('listening');
     input.classList.add('listening');
     input._listening = true;
     input.focus();
@@ -696,21 +799,20 @@ $('btnSave').onclick = async () => {
       body: JSON.stringify(body),
     });
     const j = await r.json();
-    if (!r.ok) { toast('保存失败：' + (j.error || r.status), true); return; }
-    toast('已保存并即时生效 ✓');
+    if (!r.ok) { toast(t('saveFail') + ': ' + (j.error || r.status), true); return; }
+    toast(t('saved'));
     loadConfig();
-  } catch (e) { toast('保存失败：' + e, true); }
+  } catch (e) { toast(t('saveFail') + ': ' + e, true); }
 };
 
 async function refreshStatus() {
   try {
     const j = await (await fetch('/api/status')).json();
     paused = !!j.paused;
-    const pill = $('statusPill');
-    pill.textContent = paused ? '已暂停' : '运行中';
-    pill.classList.toggle('paused', paused);
-    $('btnPause').textContent = paused ? '恢复映射' : '暂停映射';
-    $('versionHint').textContent = `v${j.version} · ${j.layers} 层`;
+    $('statusPill').textContent = paused ? t('paused') : t('running');
+    $('statusPill').classList.toggle('paused', paused);
+    $('btnPause').textContent = paused ? t('resumeBtn') : t('pauseBtn');
+    $('versionHint').textContent = `v${j.version} · ${t('layersN', j.layers)}`;
   } catch {}
 }
 
@@ -723,9 +825,9 @@ $('btnPause').onclick = async () => {
     });
     const j = await r.json();
     paused = !!j.paused;
-    toast(paused ? '映射已暂停' : '映射已恢复');
+    toast(paused ? t('mappingPaused') : t('mappingResumed'));
     refreshStatus();
-  } catch (e) { toast('操作失败：' + e, true); }
+  } catch (e) { toast(t('opFail') + ': ' + e, true); }
 };
 
 async function loadConfig() {
@@ -742,8 +844,9 @@ async function loadConfig() {
   refreshAll();
 }
 
-loadConfig().catch(e => toast('加载配置失败：' + e, true));
+loadConfig().catch(e => toast(t('loadFail') + ': ' + e, true));
 refreshStatus();
+applyLang();
 setInterval(refreshStatus, 2500);
 </script>
 </body>
