@@ -1,5 +1,6 @@
 # 构建产物
 dist/
+build/
 
 # 运行时生成的配置（默认配置内嵌于程序，见 internal/config/default.json）
 config.json
