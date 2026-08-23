@@ -1,5 +1,7 @@
 # fastype
 
+[![build](https://github.com/xiongyihui/fastype/actions/workflows/build.yml/badge.svg)](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)
+
 **fastype** 是一个 Windows 键盘增强工具：让普通键盘学会「长按」与「分层」。
 不用换键盘、不用刷固件、不用改打字习惯，把方向键、快捷键这些最常用的功能搬到手边，
 敲键盘——尤其是写代码——更快、更省力。
@@ -42,6 +44,10 @@ fastype 的设计源自研究 60% 键盘按键方案时发现（参考了 TMK �
 
 ## 上手三步
 
+还没有 `fastype.exe`？点击顶部的 build 徽章（或直接打开
+[Actions 构建页](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)），
+进入最新一次成功构建，下载 `fastype-windows-amd64` 产物，解压即可（需登录 GitHub）。
+
 1. **运行** `fastype.exe`（首次运行自动生成 `config.json`）
 2. 屏幕右下角出现**托盘图标**：双击打开配置页面，右键可 打开配置 / 暂停映射 / 退出
 3. 浏览器访问 `http://127.0.0.1:8765/`（仅监听本机），可视化编辑你的键盘
@@ -50,6 +56,8 @@ fastype 的设计源自研究 60% 键盘按键方案时发现（参考了 TMK �
 （Win+R 输入 `shell:startup` 回车即达）。
 
 ## 可视化配置界面
+
+![fastype Web 配置界面](docs/webui.png)
 
 配置页面采用Web UI可视化键盘，所见即所得：
 
