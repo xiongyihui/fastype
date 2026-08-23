@@ -17,7 +17,7 @@ import (
 	"fastype/internal/engine"
 )
 
-var version = "0.3.0"
+var version = "0.4.0"
 
 // debugDefault 由构建注入：fastype-debug.exe 默认打开调试日志。
 var debugDefault = "0"
