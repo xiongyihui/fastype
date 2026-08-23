@@ -63,6 +63,10 @@ var keyPairs = []struct {
 	{vkLShift, "shift"}, {vkLCtrl, "ctrl"}, {vkLAlt, "alt"},
 	{0xBA, ";"}, {0xBB, "="}, {0xBC, ","}, {0xBD, "-"}, {0xBE, "."},
 	{0xBF, "/"}, {0xC0, "`"}, {0xDB, "["}, {0xDC, "\\"}, {0xDD, "]"}, {0xDE, "'"},
+	// macOS 习惯别名：command=Windows 键（Mac 主修饰键），option=alt。
+	// 放在表尾，vkToName 的首见优先保证 Name() 仍返回上面的规范名。
+	{vkLWin, "command"}, {vkLWin, "cmd"},
+	{vkLAlt, "option"}, {vkLAlt, "opt"},
 }
 
 var (

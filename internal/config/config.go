@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,8 +13,7 @@ import (
 	"fastype/internal/keys"
 )
 
-//go:embed default.json
-var defaultJSON []byte
+// defaultJSON 由 defaults_*.go 按平台注入（Windows 与 macOS 的默认键位不同）。
 
 // DefaultJSON 返回内置的默认配置（首次启动时生成 config.json 用）。
 func DefaultJSON() []byte { return defaultJSON }
