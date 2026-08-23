@@ -19,7 +19,7 @@ import (
 	"fastype/internal/ui"
 )
 
-var version = "0.1.0"
+var version = "0.2.0"
 
 // debugDefault 由构建注入：fastype-debug.exe 默认打开调试日志。
 var debugDefault = "0"
