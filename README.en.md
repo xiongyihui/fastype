@@ -114,6 +114,17 @@ editing happens in the web UI; manual editing is rarely needed.
 
 ## FAQ
 
+**My antivirus flagged or even deleted fastype.exe?**
+This is a common false positive. How fastype works: it installs a Windows low-level
+keyboard hook (`WH_KEYBOARD_LL`) to watch keystrokes globally, then synthesizes the
+remapped keys with `SendInput` — "global keyboard hook + key injection" is exactly the
+signature behavior of keylogger-style malware, and since the binary is unsigned and
+freshly compiled, heuristic and cloud-reputation engines tend to flag it. fastype is
+fully open source and auditable: it phones nothing home, the web UI listens on the
+loopback interface (127.0.0.1) only, and it touches no files besides `config.json`.
+If it happens, add an exclusion in your antivirus (Windows Defender: Virus & threat
+protection settings → Exclusions), or build from source yourself.
+
 **Why doesn't it work in elevated windows (Task Manager, etc.)?**
 A standard-privilege low-level keyboard hook doesn't receive events destined for
 elevated programs. Run fastype as administrator when needed (for auto start, a
