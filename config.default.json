@@ -1,0 +1,28 @@
+{
+  "tap_timeout_ms": 500,
+  "layers": [
+    {
+      "keys": {
+        "d": { "type": "tap_hold", "tap": ["d"], "hold": { "type": "layer", "layer": 1 } },
+        ";": { "type": "tap_hold", "tap": [";"], "hold": { "type": "mods", "mods": ["ctrl"] } },
+        "'": { "type": "tap_hold", "tap": ["'"], "hold": { "type": "mods", "mods": ["alt"] } },
+        "caps lock": { "type": "tap_hold", "tap": ["caps lock"], "hold": { "type": "mods", "mods": ["ctrl"] } }
+      }
+    },
+    {
+      "keys": {
+        "h": "left",
+        "j": "down",
+        "k": "up",
+        "l": "right",
+        "u": "page up",
+        "n": "page down",
+        "y": "home",
+        "m": "end",
+        "p": "shift+insert",
+        ";": "backspace",
+        "'": "esc"
+      }
+    }
+  ]
+}

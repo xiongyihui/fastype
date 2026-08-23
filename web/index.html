@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fastype</title>
+<style>
+  :root {
+    --bg: #0e1118; --panel: #161a24; --panel2: #1b2030; --line: #262c3d;
+    --text: #e8ebf4; --muted: #8a93a8; --faint: #5b6478;
+    --accent: #5b7cfa; --accent-soft: rgba(91,124,250,.14);
+    --ok: #34d399; --warn: #fbbf24; --err: #f87171;
+    --radius: 12px; --radius-s: 8px;
+    --mono: Consolas, "Cascadia Mono", "JetBrains Mono", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Inter", system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px; -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  header {
+    position: sticky; top: 0; z-index: 20; display: flex; align-items: center;
+    gap: 12px; padding: 10px 22px; background: rgba(14,17,24,.85);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  }
+  .logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; letter-spacing: .2px; }
+  .logo svg { flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(91,124,250,.35)); }
+  .logo b { color: var(--accent); font-weight: 800; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px;
+    border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: rgba(52,211,153,.12); color: var(--ok); border: 1px solid rgba(52,211,153,.25);
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.paused { background: rgba(251,191,36,.1); color: var(--warn); border-color: rgba(251,191,36,.3); }
+  .ver { color: var(--faint); font-size: 12px; }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; color: var(--text); background: var(--panel2); cursor: pointer;
+    border: 1px solid var(--line); border-radius: var(--radius-s); padding: 7px 14px;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; }
+  button.mini { padding: 4px 10px; font-size: 12.5px; }
+  button.danger:hover { border-color: var(--err); color: var(--err); }
+
+  /* ---------- 布局 ---------- */
+  .layout { display: flex; gap: 18px; max-width: 1180px; margin: 20px auto; padding: 0 18px 70px; align-items: flex-start; }
+  .col-main { flex: 1; min-width: 0; }
+  aside.editor {
+    width: 330px; flex-shrink: 0; position: sticky; top: 68px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  @media (max-width: 980px) { .layout { flex-direction: column; } aside.editor { width: 100%; position: static; } }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px;
+  }
+
+  /* ---------- 工具条 ---------- */
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-s); overflow: hidden; }
+  .seg button { border: none; border-radius: 0; background: transparent; padding: 7px 16px; color: var(--muted); font-weight: 600; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .seg button:not(.on):hover { color: var(--text); }
+
+  /* ---------- 虚拟键盘 ---------- */
+  .kbd {
+    position: relative; width: 100%; padding: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  .kbd-inner { position: relative; width: 100%; }
+  .keybox { position: absolute; }
+  .key {
+    position: absolute; inset: 3px; cursor: pointer; user-select: none;
+    font-family: var(--mono);
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 7px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 3px 5px; overflow: hidden;
+    transition: border-color .12s, background .12s, transform .05s;
+  }
+  .key:hover { border-color: #3b4360; }
+  .key:active { transform: scale(.97); }
+  .key .act {
+    font-size: 10px; line-height: 1.25; color: #aab8ff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .key .nm {
+    font-size: 11px; color: var(--muted); font-weight: 600;
+    align-self: flex-end;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
+  .key.mod .nm, .key.mod .act { align-self: center; }
+  .key.plain .nm { font-size: 13px; color: var(--text); }
+  .key.bound { background: var(--accent-soft); border-color: rgba(91,124,250,.45); }
+  .key.bound .nm { color: #aab8ff; }
+  .key.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), 0 0 14px rgba(91,124,250,.35); z-index: 2; }
+  .key.nameless { opacity: .45; cursor: default; }
+  .kbd-note { margin-top: 10px; font-size: 12px; color: var(--faint); }
+
+  /* ---------- 列表视图 ---------- */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  th { color: var(--faint); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  td.ops { text-align: right; white-space: nowrap; }
+  .key-chip {
+    display: inline-block; min-width: 40px; text-align: center; padding: 3px 9px;
+    background: var(--accent-soft); color: #aab8ff; border-radius: 6px;
+    font-family: Consolas, monospace; font-size: 13px; font-weight: 600;
+  }
+  .bind-desc { font-family: Consolas, monospace; font-size: 13px; color: var(--muted); }
+  .bind-desc b { color: var(--text); font-weight: 600; }
+  .empty { color: var(--faint); text-align: center; padding: 22px 0; }
+
+  /* ---------- 编辑面板 ---------- */
+  .divider { height: 1px; background: var(--line); }
+  .ed-head { display: flex; align-items: center; gap: 10px; }
+  .ed-head h2 { margin: 0; font-size: 15px; }
+  .field { display: grid; gap: 6px; }
+  .field > span { font-size: 12px; color: var(--muted); font-weight: 600; }
+  select, input[type=number] {
+    font: inherit; color: var(--text); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: var(--radius-s); padding: 7px 10px; width: 100%;
+  }
+  .capture {
+    font: inherit; color: var(--text); background: var(--panel2); cursor: pointer; text-align: center;
+    border: 1px dashed #3b4360; border-radius: var(--radius-s); padding: 8px 12px;
+    font-family: Consolas, monospace; width: 100%;
+  }
+  .capture.listening { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .mods { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mods label {
+    display: flex; gap: 6px; align-items: center; padding: 5px 11px; cursor: pointer;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; font-size: 13px;
+  }
+  .mods label:has(input:checked) { border-color: var(--accent); color: #aab8ff; background: var(--accent-soft); }
+  .mods input { accent-color: var(--accent); }
+  .hint { font-size: 12px; color: var(--faint); line-height: 1.5; }
+  .ed-body { display: grid; gap: 14px; max-height: calc(100vh - 300px); overflow-y: auto; padding-right: 4px; }
+  .ed-empty { color: var(--faint); text-align: center; padding: 34px 10px; line-height: 1.8; }
+  .ed-foot { display: flex; gap: 8px; }
+  .ed-foot .primary { flex: 1; }
+
+  details.card { padding-top: 14px; }
+  details.card summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13.5px; list-style: none; }
+  details.card summary::before { content: "▸ "; }
+  details.card[open] summary::before { content: "▾ "; }
+  details.card > *:not(summary) { margin-top: 12px; }
+  .gset { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .gset label { color: var(--muted); font-size: 13px; }
+  .gset input[type=number] { width: 90px; }
+  textarea {
+    width: 100%; height: 84px; font: inherit; color: var(--text);
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: var(--radius-s); padding: 10px; resize: vertical;
+  }
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(90px);
+    background: #222839; color: #fff; border: 1px solid var(--line); padding: 10px 22px;
+    border-radius: 10px; font-size: 14px; transition: transform .25s; max-width: 80vw; z-index: 99;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.err { background: #452028; border-color: var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 36 36" width="22" height="22" aria-hidden="true">
+      <rect x="4" y="4" width="28" height="28" rx="6" fill="#d0d0d0"/>
+      <rect x="6" y="6" width="24" height="24" rx="4.5" fill="#d6d6d6"/>
+      <rect x="6" y="6" width="21.5" height="21.5" rx="4.5" fill="#ffffff"/>
+      <path d="M19.2 8.8 L11.7 18.3 L15.7 18.3 L13.7 24.8 L22.2 14.8 L17.7 14.8 Z" fill="#f59e0b"/>
+    </svg>
+    <span><b>Fast</b>ype</span>
+  </div>
+  <span class="pill" id="statusPill">…</span>
+  <span class="ver" id="versionHint"></span>
+  <div class="spacer"></div>
+  <button id="btnPause" class="mini">暂停映射</button>
+  <button id="btnSave" class="primary mini">保存并生效</button>
+</header>
+
+<div class="layout">
+  <div class="col-main">
+    <div class="toolbar">
+      <div class="seg" id="layerSeg"></div>
+      <button class="mini ghost" id="btnAddLayer">＋ 层</button>
+      <button class="mini ghost danger" id="btnDelLayer">删除当前层</button>
+      <div class="spacer"></div>
+      <button class="mini ghost" id="btnViewList">映射列表</button>
+    </div>
+
+    <div class="kbd" id="kbdWrap"><div class="kbd-inner" id="kbdView"></div></div>
+    <div class="kbd-note">点击键帽编辑该层映射 · 有映射的键显示为蓝色</div>
+
+    <div class="card" id="listView" hidden>
+      <table>
+        <thead><tr><th style="width:120px">物理键</th><th>功能</th><th style="width:120px"></th></tr></thead>
+        <tbody id="keyRows"></tbody>
+      </table>
+      <div class="empty" id="emptyHint" hidden>这一层还没有映射，点击键盘上的键添加</div>
+    </div>
+
+    <details class="card">
+      <summary>测试区</summary>
+      <p class="hint" style="margin:0 0 6px">在这里试试映射效果（例如按住 <b style="color:var(--text)">d</b> 再按 <b style="color:var(--text)">h j k l</b>）：</p>
+      <textarea id="testArea" placeholder="点击这里开始输入…"></textarea>
+    </details>
+  </div>
+
+  <aside class="editor">
+    <div class="ed-head"><h2>全局设置</h2></div>
+    <div class="field" style="flex-direction:row;align-items:center;gap:10px;display:flex">
+      <span style="white-space:nowrap">点按/长按阈值</span>
+      <input type="number" id="tapTimeout" min="100" max="2000" step="50" style="width:76px">
+      <span class="hint">ms</span>
+    </div>
+    <div class="divider"></div>
+    <div class="ed-head"><h2>按键编辑</h2><span class="key-chip" id="edKey" hidden></span></div>
+    <div class="ed-empty" id="edEmpty">
+      在左侧键盘上点击任意键帽<br>编辑它在当前层的映射
+    </div>
+    <div class="ed-body" id="edBody" hidden>
+      <div class="field">
+        <span>物理键（在真实键盘上按下）</span>
+        <input class="capture" id="capPhys" readonly placeholder="点击这里，然后按下一个键">
+      </div>
+      <div class="field">
+        <span>功能类型</span>
+        <select id="bindType">
+          <option value="key">映射为按键 / 组合键</option>
+          <option value="tap_hold">点按 / 长按（Tap-Hold）</option>
+          <option value="layer_mods">切层（可加修饰键，立即生效）</option>
+        </select>
+      </div>
+      <div id="secKey" class="field">
+        <span>输出按键</span>
+        <input class="capture" id="capKey" readonly placeholder="点击这里，然后按下一个键">
+        <div class="mods" id="comboMods">
+          <label><input type="checkbox" value="ctrl">Ctrl</label>
+          <label><input type="checkbox" value="alt">Alt</label>
+          <label><input type="checkbox" value="shift">Shift</label>
+          <label><input type="checkbox" value="windows">Win</label>
+        </div>
+      </div>
+      <div id="secTapHold" style="display:grid;gap:14px">
+        <div class="field">
+          <span>点按输出</span>
+          <input class="capture" id="capTap" readonly placeholder="点击这里，然后按下一个键">
+          <div class="mods" id="tapMods">
+            <label><input type="checkbox" value="ctrl">Ctrl</label>
+            <label><input type="checkbox" value="alt">Alt</label>
+            <label><input type="checkbox" value="shift">Shift</label>
+            <label><input type="checkbox" value="windows">Win</label>
+          </div>
+        </div>
+        <div class="field">
+          <span>长按行为</span>
+          <div style="display:flex;gap:8px">
+            <select id="holdType">
+              <option value="layer">切换到层</option>
+              <option value="mods">按住修饰键</option>
+            </select>
+            <select id="holdLayer"></select>
+          </div>
+          <div class="mods" id="holdMods">
+            <label><input type="checkbox" value="ctrl">Ctrl</label>
+            <label><input type="checkbox" value="alt">Alt</label>
+            <label><input type="checkbox" value="shift">Shift</label>
+            <label><input type="checkbox" value="windows">Win</label>
+          </div>
+        </div>
+      </div>
+      <div id="secLayerMods" class="field">
+        <span>按下时切换到</span>
+        <select id="lmLayer"></select>
+        <div class="mods" id="lmMods">
+          <label><input type="checkbox" value="ctrl">Ctrl</label>
+          <label><input type="checkbox" value="alt">Alt</label>
+          <label><input type="checkbox" value="shift">Shift</label>
+          <label><input type="checkbox" value="windows">Win</label>
+        </div>
+        <span class="hint">立即生效（无点按判定）。修饰键可不勾选＝纯切层</span>
+      </div>
+    </div>
+    <div class="ed-foot" id="edFoot" hidden>
+      <button id="btnClear" class="danger mini">清除映射</button>
+      <button id="btnConfirm" class="primary">应用</button>
+    </div>
+  </aside>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ================= 键名工具 ================= */
+const code2name = (() => {
+  const m = {};
+  for (let c = 65; c <= 90; c++) m['Key' + String.fromCharCode(c)] = String.fromCharCode(c).toLowerCase();
+  for (let d = 0; d <= 9; d++) m['Digit' + d] = String(d);
+  Object.assign(m, {
+    Minus:'-', Equal:'=', BracketLeft:'[', BracketRight:']', Backslash:'\\',
+    Semicolon:';', Quote:"'", Backquote:'`', Comma:',', Period:'.', Slash:'/',
+    Space:'space', Enter:'enter', Tab:'tab', Backspace:'backspace',
+    CapsLock:'caps lock', Escape:'esc', Insert:'insert', Delete:'delete',
+    Home:'home', End:'end', PageUp:'page up', PageDown:'page down',
+    ArrowLeft:'left', ArrowUp:'up', ArrowRight:'right', ArrowDown:'down',
+    ShiftLeft:'shift', ShiftRight:'shift', ControlLeft:'ctrl', ControlRight:'ctrl',
+    AltLeft:'alt', AltRight:'alt', MetaLeft:'windows', MetaRight:'windows',
+    ContextMenu:'menu', NumLock:'num lock', ScrollLock:'scroll lock',
+    PrintScreen:'print screen', Pause:'pause', NumpadEnter:'enter',
+    NumpadAdd:'keypad +', NumpadSubtract:'keypad -', NumpadMultiply:'keypad *',
+    NumpadDivide:'keypad /', NumpadDecimal:'keypad .',
+  });
+  for (let d = 0; d <= 9; d++) m['Numpad' + d] = 'keypad ' + d;
+  for (let f = 1; f <= 12; f++) m['F' + f] = 'f' + f;
+  return m;
+})();
+const MODS = ['ctrl', 'alt', 'shift', 'windows'];
+const MOD_NAME_SET = new Set(['ctrl','windows','alt','shift','menu','enter','tab','caps lock','backspace','esc','space']);
+
+/* ================= 布局模型（x/y/w/h 坐标，单位 u） ================= */
+function defaultLayout() {
+  const rows = [
+    ['`','1','2','3','4','5','6','7','8','9','0','-','=','backspace:2'],
+    ['tab:1.5','q','w','e','r','t','y','u','i','o','p','[',']','\\:1.5'],
+    ['caps lock:1.75','a','s','d','f','g','h','j','k','l',';',"'",'enter:2.25'],
+    ['shift:2.25','z','x','c','v','b','n','m',',','.','/','shift:2.75'],
+    ['ctrl:1.25','windows:1.25','alt:1.25','space:6.25','alt:1.25','windows:1.25','menu:1.25','ctrl:1.25'],
+  ];
+  const layout = [];
+  rows.forEach((row, y) => {
+    let x = 0;
+    for (const cell of row) {
+      const [name, w] = cell.split(':');
+      const width = w ? parseFloat(w) : 1;
+      layout.push({ name, x, y, w: width, h: 1, label: null });
+      x += width;
+    }
+  });
+  return layout;
+}
+
+let layout = defaultLayout();
+
+/* ================= 状态 ================= */
+let cfg = { port: 8765, tap_timeout_ms: 500, layers: [] };
+let activeLayer = 0;
+let paused = false;
+let selectedKey = null;
+
+const $ = id => document.getElementById(id);
+
+function toast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err show' : 'show';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), isErr ? 5000 : 2500);
+}
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function normalizeBind(b) {
+  if (typeof b === 'string') return { type: 'key', keys: b.split('+').map(s => s.trim()).filter(Boolean) };
+  return b || { type: 'key', keys: [] };
+}
+const comboText = keys => keys.join('+');
+
+function capText(b) {
+  b = normalizeBind(b);
+  if (b.type === 'key') return comboText(b.keys);
+  if (b.type === 'tap_hold')
+    return comboText(b.tap) + ' / ' + (b.hold.type === 'layer' ? '层' + b.hold.layer : comboText(b.hold.mods) || '—');
+  return (comboText(b.mods) ? comboText(b.mods) + '+' : '') + '层' + b.layer;
+}
+function describe(b) {
+  b = normalizeBind(b);
+  if (b.type === 'key') return comboText(b.keys);
+  if (b.type === 'tap_hold') {
+    const hold = b.hold.type === 'layer' ? `长按 切换到层 ${b.hold.layer}` : `长按 按住 ${comboText(b.hold.mods)}`;
+    return `<b>点按</b> ${comboText(b.tap)} <span style="color:var(--faint)">·</span> <b>${hold}</b>`;
+  }
+  if (b.type === 'layer_mods') return `按住 ${comboText(b.mods) || '<i>无</i>'} 并切换到层 ${b.layer}`;
+  return '?';
+}
+
+function bindOf(name) {
+  const layer = cfg.layers[activeLayer] || { keys: [] };
+  return layer.keys.find(([n]) => n === name);
+}
+function modsChecked(id) { return [...$(id).querySelectorAll('input:checked')].map(c => c.value); }
+function setModsChecked(id, mods) { $(id).querySelectorAll('input').forEach(c => c.checked = (mods || []).includes(c.value)); }
+
+/* ================= 虚拟键盘渲染 ================= */
+function keyLabel(k) {
+  if (k.label) return k.label;
+  const L = { 'backspace':'⌫', 'enter':'⏎ enter', 'caps lock':'caps', 'windows':'win',
+              'ctrl':'ctrl', 'alt':'alt', 'shift':'shift', 'space':'space',
+              'left':'←', 'up':'↑', 'down':'↓', 'right':'→' };
+  return L[k.name] || k.name || '';
+}
+
+function renderKbd() {
+  const wrap = $('kbdView');
+  const W = Math.max(...layout.map(k => k.x + k.w), 1);
+  const H = Math.max(...layout.map(k => k.y + k.h), 1);
+  // 四周留 0.25u 边距；键位按 u 占比定位，键帽保持接近正方形
+  wrap.style.aspectRatio = `${W + 0.5} / ${H + 0.5}`;
+  wrap.innerHTML = '';
+  for (const k of layout) {
+    const box = document.createElement('div');
+    box.className = 'keybox';
+    box.style.left = ((k.x + 0.25) / (W + 0.5) * 100) + '%';
+    box.style.top = ((k.y + 0.25) / (H + 0.5) * 100) + '%';
+    box.style.width = (k.w / (W + 0.5) * 100) + '%';
+    box.style.height = (k.h / (H + 0.5) * 100) + '%';
+
+    const el = document.createElement('div');
+    el.className = 'key';
+    if (!k.name) el.classList.add('nameless');
+    else if (MOD_NAME_SET.has(k.name) || k.w >= 1.5) el.classList.add('mod');
+    else el.classList.add('plain');
+    const entry = k.name ? bindOf(k.name) : null;
+    if (entry) el.classList.add('bound');
+    if (k.name && selectedKey === k.name) el.classList.add('sel');
+    el.innerHTML =
+      `<span class="act">${entry ? escapeHtml(capText(entry[1])) : ''}</span>` +
+      `<span class="nm">${escapeHtml(keyLabel(k))}</span>`;
+    if (k.name) {
+      el.title = entry ? `${k.name} → ${capText(entry[1])}` : k.name;
+      el.onclick = () => selectKey(k.name);
+    }
+    box.appendChild(el);
+    wrap.appendChild(box);
+  }
+}
+
+/* ================= 层选择 / 列表 ================= */
+function renderSeg() {
+  const seg = $('layerSeg');
+  seg.innerHTML = '';
+  cfg.layers.forEach((_, i) => {
+    const b = document.createElement('button');
+    b.textContent = i === 0 ? '层 0 · 默认' : '层 ' + i;
+    b.className = i === activeLayer ? 'on' : '';
+    b.onclick = () => { activeLayer = i; selectedKey = null; refreshAll(); };
+    seg.appendChild(b);
+  });
+  $('btnDelLayer').disabled = activeLayer === 0 || cfg.layers.length <= 1;
+}
+
+function renderList() {
+  const tbody = $('keyRows');
+  tbody.innerHTML = '';
+  const layer = cfg.layers[activeLayer] || { keys: [] };
+  $('emptyHint').hidden = layer.keys.length > 0;
+  layer.keys.forEach(([name, bind]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="key-chip">${escapeHtml(name)}</span></td>
+      <td><span class="bind-desc">${describe(bind)}</span></td>
+      <td class="ops"><button class="mini ghost" data-op="edit">编辑</button></td>`;
+    tr.querySelector('[data-op=edit]').onclick = () => selectKey(name);
+    tbody.appendChild(tr);
+  });
+}
+
+function refreshAll() {
+  renderSeg(); renderKbd(); renderList();
+}
+
+$('btnViewList').onclick = () => {
+  const lv = $('listView');
+  lv.hidden = !lv.hidden;
+};
+
+$('btnAddLayer').onclick = () => {
+  if (cfg.layers.length >= 8) { toast('最多支持 8 层', true); return; }
+  cfg.layers.push({ keys: [] });
+  activeLayer = cfg.layers.length - 1;
+  refreshAll();
+};
+$('btnDelLayer').onclick = () => {
+  const n = cfg.layers.filter(l => l.keys.some(([, b]) => {
+    b = normalizeBind(b);
+    return (b.hold && b.hold.layer === activeLayer) || (b.type === 'layer_mods' && b.layer === activeLayer);
+  })).length;
+  if (!confirm(`删除层 ${activeLayer}？` + (n ? `\n\n注意：有 ${n} 处映射引用了该层，删除后保存会校验失败。` : ''))) return;
+  cfg.layers.splice(activeLayer, 1);
+  activeLayer = 0;
+  selectKey(null);
+  refreshAll();
+};
+
+/* ================= 编辑面板 ================= */
+function selectKey(name) {
+  selectedKey = name;
+  const has = !!name;
+  $('edEmpty').hidden = has;
+  $('edBody').hidden = !has;
+  $('edFoot').hidden = !has;
+  $('edKey').hidden = !has;
+  if (!has) { renderKbd(); return; }
+  $('edKey').textContent = name;
+  $('capPhys').value = name;
+
+  const entry = bindOf(name);
+  const bind = entry ? normalizeBind(entry[1]) : { type: 'key', keys: [] };
+  $('bindType').value = bind.type;
+  $('capKey').value = ''; $('capTap').value = '';
+  fillLayerSelect($('holdLayer'));
+  fillLayerSelect($('lmLayer'));
+
+  if (bind.type === 'key') {
+    $('capKey').value = bind.keys.filter(k => !MODS.includes(k)).join('+');
+    setModsChecked('comboMods', bind.keys.filter(k => MODS.includes(k)));
+  } else if (bind.type === 'tap_hold') {
+    $('capTap').value = bind.tap.filter(k => !MODS.includes(k)).join('+');
+    setModsChecked('tapMods', bind.tap.filter(k => MODS.includes(k)));
+    $('holdType').value = bind.hold.type;
+    if (bind.hold.type === 'layer') $('holdLayer').value = bind.hold.layer;
+    else setModsChecked('holdMods', bind.hold.mods);
+  } else if (bind.type === 'layer_mods') {
+    setModsChecked('lmMods', bind.mods);
+    $('lmLayer').value = bind.layer;
+  }
+  syncEditorSections();
+  renderKbd();
+  if (!$('listView').hidden) renderList();
+}
+
+function fillLayerSelect(sel) {
+  sel.innerHTML = '';
+  cfg.layers.forEach((_, i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = '层 ' + i;
+    sel.appendChild(o);
+  });
+}
+
+function syncEditorSections() {
+  const t = $('bindType').value;
+  $('secKey').style.display = t === 'key' ? 'grid' : 'none';
+  $('secTapHold').style.display = t === 'tap_hold' ? 'grid' : 'none';
+  $('secLayerMods').style.display = t === 'layer_mods' ? 'grid' : 'none';
+  const holdIsMods = $('holdType').value === 'mods';
+  $('holdLayer').style.display = holdIsMods ? 'none' : '';
+  $('holdMods').style.display = holdIsMods ? 'flex' : 'none';
+}
+$('bindType').onchange = syncEditorSections;
+$('holdType').onchange = syncEditorSections;
+
+function collectBind() {
+  const t = $('bindType').value;
+  if (t === 'key') {
+    const key = $('capKey').value.trim();
+    if (!key) { toast('请先捕获要输出的按键', true); return null; }
+    return { type: 'key', keys: [...modsChecked('comboMods'), key] };
+  }
+  if (t === 'tap_hold') {
+    const tapKey = $('capTap').value.trim();
+    if (!tapKey) { toast('请先捕获点按输出的按键', true); return null; }
+    let hold;
+    if ($('holdType').value === 'layer') hold = { type: 'layer', layer: +$('holdLayer').value };
+    else {
+      const mods = modsChecked('holdMods');
+      if (!mods.length) { toast('请至少勾选一个长按修饰键', true); return null; }
+      hold = { type: 'mods', mods };
+    }
+    return { type: 'tap_hold', tap: [...modsChecked('tapMods'), tapKey], hold };
+  }
+  return { type: 'layer_mods', mods: modsChecked('lmMods'), layer: +$('lmLayer').value };
+}
+
+$('btnConfirm').onclick = () => {
+  const name = $('capPhys').value.trim();
+  if (!name) { toast('请先指定物理键', true); return; }
+  const bind = collectBind();
+  if (!bind) return;
+  const layer = cfg.layers[activeLayer];
+  const i = layer.keys.findIndex(([n]) => n === name);
+  if (i >= 0) layer.keys[i] = [name, bind];
+  else layer.keys.push([name, bind]);
+  selectedKey = name;
+  refreshAll();
+  toast('已应用到编辑（记得右上角保存）');
+};
+$('btnClear').onclick = () => {
+  const layer = cfg.layers[activeLayer];
+  const i = layer.keys.findIndex(([n]) => n === selectedKey);
+  if (i >= 0) layer.keys.splice(i, 1);
+  refreshAll();
+  selectKey(null);
+};
+
+/* ================= 按键捕获 ================= */
+function attachCapture(input, modsContainerId) {
+  input.addEventListener('mousedown', e => e.preventDefault());
+  input.addEventListener('click', () => {
+    input._old = input.value;
+    input.value = '按下要绑定的按键…（Esc 取消）';
+    input.classList.add('listening');
+    input._listening = true;
+    input.focus();
+  });
+  input.addEventListener('keydown', e => {
+    if (!input._listening) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.code === 'Escape') {
+      input.value = input._old || '';
+      input._listening = false;
+      input.classList.remove('listening');
+      return;
+    }
+    const name = code2name[e.code];
+    if (!name) return;
+    input.value = name;
+    if (modsContainerId) {
+      if (!MODS.includes(name)) {
+        const held = [];
+        if (e.ctrlKey) held.push('ctrl');
+        if (e.altKey) held.push('alt');
+        if (e.shiftKey) held.push('shift');
+        if (e.metaKey) held.push('windows');
+        setModsChecked(modsContainerId, held);
+      } else {
+        setModsChecked(modsContainerId, []);
+      }
+    }
+    input._listening = false;
+    input.classList.remove('listening');
+  });
+  input.addEventListener('blur', () => {
+    if (input._listening) {
+      input.value = input._old || '';
+      input._listening = false;
+      input.classList.remove('listening');
+    }
+  });
+}
+attachCapture($('capPhys'), null);
+attachCapture($('capKey'), 'comboMods');
+attachCapture($('capTap'), 'tapMods');
+
+/* ================= 保存 / 状态 ================= */
+$('btnSave').onclick = async () => {
+  const body = {
+    port: cfg.port || 8765,
+    tap_timeout_ms: +$('tapTimeout').value || 500,
+    layers: cfg.layers.map(l => {
+      const o = {};
+      l.keys.forEach(([n, b]) => { o[n] = b; });
+      return { keys: o };
+    }),
+  };
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!r.ok) { toast('保存失败：' + (j.error || r.status), true); return; }
+    toast('已保存并即时生效 ✓');
+    loadConfig();
+  } catch (e) { toast('保存失败：' + e, true); }
+};
+
+async function refreshStatus() {
+  try {
+    const j = await (await fetch('/api/status')).json();
+    paused = !!j.paused;
+    const pill = $('statusPill');
+    pill.textContent = paused ? '已暂停' : '运行中';
+    pill.classList.toggle('paused', paused);
+    $('btnPause').textContent = paused ? '恢复映射' : '暂停映射';
+    $('versionHint').textContent = `v${j.version} · ${j.layers} 层`;
+  } catch {}
+}
+
+$('btnPause').onclick = async () => {
+  try {
+    const r = await fetch('/api/pause', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paused: !paused }),
+    });
+    const j = await r.json();
+    paused = !!j.paused;
+    toast(paused ? '映射已暂停' : '映射已恢复');
+    refreshStatus();
+  } catch (e) { toast('操作失败：' + e, true); }
+};
+
+async function loadConfig() {
+  const j = await (await fetch('/api/config')).json();
+  cfg = {
+    port: j.port || 8765,
+    tap_timeout_ms: j.tap_timeout_ms || 500,
+    layers: (j.layers || []).map(l => ({
+      keys: Object.entries(l.keys || {}).map(([name, bind]) => [name, normalizeBind(bind)]),
+    })),
+  };
+  $('tapTimeout').value = cfg.tap_timeout_ms;
+  if (activeLayer >= cfg.layers.length) { activeLayer = 0; selectedKey = null; }
+  refreshAll();
+}
+
+loadConfig().catch(e => toast('加载配置失败：' + e, true));
+refreshStatus();
+setInterval(refreshStatus, 2500);
+</script>
+</body>
+</html>

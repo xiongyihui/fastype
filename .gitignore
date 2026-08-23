@@ -1,0 +1,9 @@
+# 构建产物
+dist/
+
+# 运行时生成的配置（默认配置内嵌于程序，见 config.default.json）
+config.json
+
+# 日志与临时文件
+*.log
+*.tmp
