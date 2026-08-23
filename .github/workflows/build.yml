@@ -31,7 +31,7 @@ jobs:
         shell: bash
 
       - name: Package zip
-        run: Compress-Archive -Path dist/fastype.exe, dist/fastype-debug.exe -DestinationPath dist/fastype-windows-amd64.zip
+        run: Compress-Archive -Path dist/fastype.exe -DestinationPath dist/fastype-windows-amd64.zip
         shell: pwsh
 
       - name: Upload artifact
