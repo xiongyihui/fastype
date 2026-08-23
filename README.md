@@ -4,7 +4,7 @@
 
 [![build](https://github.com/xiongyihui/fastype/actions/workflows/build.yml/badge.svg)](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)
 
-**fastype** 是一个 Windows 键盘增强工具：让普通键盘学会「长按」与「分层」。
+**fastype** 是一个 Windows / macOS 键盘增强工具：让普通键盘学会「长按」与「分层」。
 不用换键盘、不用刷固件、不用改打字习惯，把方向键、快捷键这些最常用的功能搬到手边，让写代码更快、更省力。
 
 ## 设计理念
@@ -41,6 +41,11 @@ fastype 的设计，源自研究 60% 键盘按键方案时的发现：普通键�
 
 点按与长按的判定阈值默认 500ms，可在配置界面调整。
 
+> **macOS 默认键位差异**：<kbd>p</kbd> 映射为 **⌘V**（粘贴）、长按 <kbd>'</kbd> 是 ⌥ Option；
+> 其余与 Windows 相同（长按 <kbd>;</kbd> = Ctrl、按住 <kbd>d</kbd> 进导航层）。
+> macOS 的 CapsLock 没有抬起事件、不支持长按判定，默认不做映射。
+> 配置中 `command`/`option` 与 `windows`/`alt` 互为别名，两平台配置文件完全兼容。
+
 ## 上手三步
 
 正式版到 [Releases](https://github.com/xiongyihui/fastype/releases) 下载；或打开
@@ -52,6 +57,26 @@ fastype 的设计，源自研究 60% 键盘按键方案时的发现：普通键�
 
 开机自启：托盘右键菜单点「**开机自启**」即可一键开启/关闭；也可以手动把 `fastype.exe` 的快捷方式放进 `shell:startup` 文件夹
 （Win+R 输入 `shell:startup` 回车即达）。
+
+### macOS
+
+**安装（推荐 DMG）**：下载 `Fastype-<版本>-macos.dmg`，打开后把 **Fastype** 拖入 Applications，
+双击启动（首次运行未签名应用：右键 → 打开）。启动后：
+
+1. **屏幕顶部菜单栏出现 ⌨ 图标**（注意：macOS 没有 Windows 那样的右下角托盘，
+   状态图标在屏幕最上沿的菜单栏右侧，悬停显示「Fastype - 等待授权」）。
+2. **授权**：首次启动 fastype 会弹出系统通知并打开「辅助功能」设置页——
+   把 **Fastype** 加入并打开开关即可，**几秒内自动生效，无需重启**。
+   （也可先用 `--dry-run` 免授权体验：只读监听并打印判定结果，不拦截不注入。）
+3. 点击菜单栏图标：打开配置 / 暂停映射 / 登录自启 / 退出；
+   浏览器访问 `http://127.0.0.1:8765/` 可视化编辑键盘（界面自动显示 ⌘/⌥ 标签，
+   状态徽标在未授权时显示「等待授权」）。
+
+登录自启由菜单栏菜单一键开关（写入 `~/Library/LaunchAgents/com.xiongyihui.fastype.plist`，
+下次登录生效），授权对象为 **Fastype.app**。
+
+**命令行方式运行**（Homebrew bin 目录等）：`fastype` / `fastype --dry-run`，
+此时辅助功能授权对象是运行它的**终端 App**。
 
 ## 可视化配置界面
 
@@ -93,9 +118,11 @@ fastype.exe --version / --help
 | `FASTYPE_DEBUG=1` | 打印每次按键的判定过程（调试点按/长按行为） |
 | `FASTYPE_DRY_RUN=1` | 等同 `--dry-run` |
 | `FASTYPE_CONFIG` | 指定配置文件路径 |
+| `FASTYPE_NO_PROMPT=1` | macOS：缺少辅助功能权限时不弹系统授权界面（launchd/SSH 场景） |
 
 配置文件查找顺序：`--config` 参数 > `FASTYPE_CONFIG` > 当前目录 `config.json` >
-exe 同目录 > `%APPDATA%\fastype\config.json`。日常用配置界面编辑即可，一般不需要手改。
+exe 同目录 > 系统配置目录（Windows: `%APPDATA%\fastype`，macOS: `~/Library/Application Support/fastype`）。
+日常用配置界面编辑即可，一般不需要手改。
 
 ## 常见问题
 
@@ -107,12 +134,23 @@ fastype 完全开源、行为可审计：不联网上报，Web 界面只监听�
 外不读写任何文件。遇到误报时，可在杀毒软件中加入信任/排除（Windows Defender：病毒和威胁防护
 设置 → 排除项），或从源码自行编译。
 
-**为什么在管理员窗口（任务管理器等）里不生效？**
-普通权限的低级键盘钩子收不到发往管理员程序的事件。需要时右键「以管理员身份运行」
-fastype（自启快捷方式同理，在任务计划程序里以最高权限创建更省心）。
+**macOS 提示需要「辅助功能」权限？**
+macOS 通过 CGEventTap 监听全局按键、CGEventPost 注入改写后的按键，系统要求先授予
+「辅助功能」权限（这是所有按键改写类工具如 Karabiner 的统一要求）。授权对象取决于运行方式：
+**Fastype.app**（DMG 安装）或终端 App（命令行运行）。未授权时 fastype 不会退出：菜单栏图标
+保持「等待授权」状态并每 2 秒自动检测，开关打开后几秒内自动生效，无需重启。
+`--dry-run` 只读模式不需要授权。
+
+**重新安装新版本后授权失效了？（macOS）**
+fastype 的 DMG 目前是 ad-hoc 签名（没有 Apple 开发者证书）。自 2026-08 构建起，签名要求
+已固定为应用标识（bundle identifier），正常情况下**升级新版本后辅助功能授权会保留**。
+若升级后界面仍显示「等待授权」：到 系统设置 → 隐私与安全性 → 辅助功能，
+选中 Fastype 按「−」删除，再点「＋」重新添加并打开开关（几秒内自动生效）。
+fastype 检测到未授权会自动弹出通知并打开该设置页。
 
 **游戏里会生效吗？**
-部分游戏及其反作弊会无视程序合成的按键，请不要在游戏中依赖 fastype，也请遵守游戏规则。
+部分游戏及其反作弊会无视程序合成的按键（Windows 与 macOS 同理），请不要在游戏中依赖 fastype，
+也请遵守游戏规则。
 
 **退出后按键会卡住吗？**
 不会。托盘退出或 Ctrl+C 时会自动释放所有按住的合成键。
@@ -121,23 +159,36 @@ fastype（自启快捷方式同理，在任务计划程序里以最高权限创�
 不能。启动时若检测到已有实例会直接提示退出，避免两个钩子互相干扰。
 
 **临时不想用怎么办？**
-托盘右键「暂停按键映射」，或配置页面右上角暂停按钮；彻底不用就从托盘退出。
+托盘/菜单栏「暂停按键映射」，或配置页面右上角暂停按钮；彻底不用就退出程序。
 
 **支持哪些系统？**
-仅 Windows x64。
+Windows x64 与 macOS（Intel / Apple Silicon，macOS 13+）。
 
 ## 从源码构建
 
-需要 Go ≥ 1.22，零第三方依赖：
+需要 Go ≥ 1.22（macOS 端另需 Xcode Command Line Tools 提供 clang），零第三方依赖：
 
 ```
 go test ./...
+
+# Windows
 go build -ldflags "-s -w -H windowsgui" -o dist\fastype.exe .\cmd\fastype
 go build -ldflags "-X main.debugDefault=1" -o dist\fastype-debug.exe .\cmd\fastype
+
+# macOS（本机构建）
+go build -ldflags "-s -w" -o dist/fastype ./cmd/fastype
+go build -ldflags "-X main.debugDefault=1" -o dist/fastype-debug ./cmd/fastype
+
+# macOS 交叉构建另一架构
+CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 CC="clang -arch x86_64"  go build -o dist/fastype-macos-amd64  ./cmd/fastype
+CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 CC="clang -arch arm64"  go build -o dist/fastype-macos-arm64  ./cmd/fastype
+
+# macOS 打包 .app + DMG（universal，含图标与 ad-hoc 签名）
+scripts/package-macos.sh
 ```
 
-`fastype.exe` 日常使用（无窗口后台运行）；`fastype-debug.exe` 带控制台，
-启动即输出按键判定日志，排查点按/长按行为用。
+Windows：`fastype.exe` 日常使用（无窗口后台运行）；`fastype-debug.exe` 带控制台，
+启动即输出按键判定日志。macOS 同理（`fastype-debug` 带调试日志）。
 
 ## 来源与致谢
 

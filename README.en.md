@@ -4,7 +4,7 @@
 
 [![build](https://github.com/xiongyihui/fastype/actions/workflows/build.yml/badge.svg)](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)
 
-**fastype** is a Windows keyboard enhancement tool: it teaches an ordinary keyboard
+**fastype** is a Windows / macOS keyboard enhancement tool: it teaches an ordinary keyboard
 「tap-hold」 and 「layers」. No new keyboard, no firmware flashing, no change to your
 typing habits — the arrow keys and the shortcuts you use most are moved to your
 fingertips, so coding gets faster and easier.
@@ -50,10 +50,17 @@ Quick taps pass through unchanged, so your existing typing habits are never affe
 
 The tap/hold threshold defaults to 500 ms and is adjustable in the config UI.
 
+> **macOS default differences**: <kbd>p</kbd> maps to **⌘V** (paste) and holding <kbd>'</kbd>
+> is ⌥ Option; everything else matches Windows (hold <kbd>;</kbd> = Ctrl, hold <kbd>d</kbd>
+> for the navigation layer). macOS CapsLock has no key-up event, so tap-hold is not
+> possible on it and it is left unmapped by default. In configs `command`/`option` are
+> aliases of `windows`/`alt`, so config files are fully portable between the two platforms.
+
 ## Quick Start
 
 Download the official build from [Releases](https://github.com/xiongyihui/fastype/releases),
-or grab the `fastype-windows-amd64` artifact from the latest successful build on the
+or grab the `fastype-windows-amd64` / `fastype-macos` artifacts from the latest
+successful build on the
 [Actions page](https://github.com/xiongyihui/fastype/actions/workflows/build.yml).
 
 1. **Run** `fastype.exe` (a `config.json` is generated on first run)
@@ -63,6 +70,30 @@ or grab the `fastype-windows-amd64` artifact from the latest successful build on
 
 Auto start: toggle「**Start with Windows**」 in the tray right-click menu; or manually
 put a shortcut to `fastype.exe` in the `shell:startup` folder (Win+R → `shell:startup`).
+
+### macOS
+
+**Install (DMG recommended)**: download `Fastype-<version>-macos.dmg`, open it,
+drag **Fastype** into Applications and double-click to launch (first run of an
+unsigned app: right-click → Open). After launch:
+
+1. A **⌨ icon appears in the menu bar at the top of the screen** (note: macOS has
+   no Windows-style bottom-right tray; status icons live on the right end of the
+   top menu bar — hover shows "Fastype - Waiting for permission").
+2. **Grant permission**: on first launch fastype posts a notification and opens
+   the Accessibility settings pane — add **Fastype** and enable the switch. It
+   **activates automatically within seconds; no restart needed**. (You can also
+   try `--dry-run` first with no permission: read-only, logs decisions only.)
+3. Click the menu bar icon: Open Config / Pause / Start at Login / Exit; visit
+   `http://127.0.0.1:8765/` to edit your keyboard visually (⌘/⌥ labels appear
+   automatically; the status badge shows "Waiting for permission" until granted).
+
+Start at Login is toggled from the menu bar (writes
+`~/Library/LaunchAgents/com.xiongyihui.fastype.plist`, effective from the next
+login); the Accessibility permission applies to **Fastype.app**.
+
+**Running the CLI binary** (e.g. from a Homebrew bin dir): `fastype` /
+`fastype --dry-run` — grant Accessibility to the **terminal app** running it.
 
 ## Visual Config UI
 
@@ -107,10 +138,12 @@ fastype.exe --version / --help
 | `FASTYPE_DEBUG=1` | Log every tap/hold decision (debugging aid) |
 | `FASTYPE_DRY_RUN=1` | Same as `--dry-run` |
 | `FASTYPE_CONFIG` | Path to the config file |
+| `FASTYPE_NO_PROMPT=1` | macOS: skip the system permission dialog (for launchd/SSH) |
 
 Config lookup order: `--config` argument > `FASTYPE_CONFIG` > `config.json` in the
-current directory > next to the exe > `%APPDATA%\fastype\config.json`. Day-to-day
-editing happens in the web UI; manual editing is rarely needed.
+current directory > next to the exe > the platform config dir
+(Windows: `%APPDATA%\fastype`, macOS: `~/Library/Application Support/fastype`).
+Day-to-day editing happens in the web UI; manual editing is rarely needed.
 
 ## FAQ
 
@@ -125,14 +158,31 @@ loopback interface (127.0.0.1) only, and it touches no files besides `config.jso
 If it happens, add an exclusion in your antivirus (Windows Defender: Virus & threat
 protection settings → Exclusions), or build from source yourself.
 
-**Why doesn't it work in elevated windows (Task Manager, etc.)?**
+**Why doesn't it work in elevated windows (Task Manager, etc.)? (Windows)**
 A standard-privilege low-level keyboard hook doesn't receive events destined for
 elevated programs. Run fastype as administrator when needed (for auto start, a
 scheduled task with highest privileges is the tidy option).
 
+**macOS asks for the Accessibility permission?**
+fastype watches keys via CGEventTap and rewrites them via CGEventPost; macOS requires
+the Accessibility permission first (the same requirement as every key-remapping tool
+such as Karabiner). Grant it to **Fastype.app** (DMG install) or the terminal app
+(CLI runs). Without the permission fastype keeps running: the menu bar icon shows
+"Waiting for permission", re-checks every 2 seconds, and activates automatically
+once you enable the switch — no restart needed. `--dry-run` needs no permission.
+
+**Lost the Accessibility permission after installing a new build? (macOS)**
+The GitHub DMGs are ad-hoc signed (no Apple Developer certificate). Since the
+2026-08 builds the signing requirement is pinned to the bundle identifier, so
+**upgrades normally keep the Accessibility permission**. If the UI still shows
+"Waiting for permission" after an upgrade: remove Fastype (select it, press
+"−") under System Settings → Privacy & Security → Accessibility, re-add it
+with "+" and enable the switch — it activates within seconds. fastype notices
+and opens that settings pane for you automatically.
+
 **Does it work in games?**
-Some games and anti-cheat systems ignore synthesized keystrokes. Don't rely on
-fastype in games, and follow the game's rules.
+Some games and anti-cheat systems ignore synthesized keystrokes (on both Windows and
+macOS). Don't rely on fastype in games, and follow the game's rules.
 
 **Will keys get stuck after quitting?**
 No. Tray exit or Ctrl+C releases every synthesized key that is still held.
@@ -142,24 +192,39 @@ No. If an existing instance is detected at startup, fastype exits with a notice 
 avoid two hooks interfering with each other.
 
 **How do I pause it temporarily?**
-「Pause Mapping」 in the tray menu or the pause button in the web UI; quit from the
-tray to stop entirely.
+「Pause Mapping」 in the tray / menu bar, or the pause button in the web UI; quit from
+the tray / menu bar to stop entirely.
 
 **Which systems are supported?**
-Windows x64 only.
+Windows x64 and macOS (Intel / Apple Silicon, macOS 13+).
 
 ## Build from Source
 
-Requires Go ≥ 1.22, zero third-party dependencies:
+Requires Go ≥ 1.22 (plus Xcode Command Line Tools for clang on macOS), zero
+third-party dependencies:
 
 ```
 go test ./...
+
+# Windows
 go build -ldflags "-s -w -H windowsgui" -o dist\fastype.exe .\cmd\fastype
 go build -ldflags "-X main.debugDefault=1" -o dist\fastype-debug.exe .\cmd\fastype
+
+# macOS (native)
+go build -ldflags "-s -w" -o dist/fastype ./cmd/fastype
+go build -ldflags "-X main.debugDefault=1" -o dist/fastype-debug ./cmd/fastype
+
+# macOS cross builds
+CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 CC="clang -arch x86_64" go build -o dist/fastype-macos-amd64 ./cmd/fastype
+CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 CC="clang -arch arm64" go build -o dist/fastype-macos-arm64 ./cmd/fastype
+
+# macOS package .app + DMG (universal, icon + ad-hoc signature)
+scripts/package-macos.sh
 ```
 
-`fastype.exe` is for daily use (windowless background); `fastype-debug.exe` attaches a
-console and prints tap/hold decisions from startup — handy for troubleshooting.
+On Windows `fastype.exe` is for daily use (windowless background); `fastype-debug.exe`
+attaches a console and prints tap/hold decisions from startup. Same on macOS
+(`fastype-debug`).
 
 ## Origin & Credits
 
