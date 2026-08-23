@@ -44,7 +44,8 @@ fastype 的设计源自研究 60% 键盘按键方案时发现（参考了 TMK �
 
 ## 上手三步
 
-还没有 `fastype.exe`？点击顶部的 build 徽章（或直接打开
+还没有 `fastype.exe`？正式版到 [Releases](https://github.com/xiongyihui/fastype/releases)
+下载（无需登录）；或点击顶部的 build 徽章（或直接打开
 [Actions 构建页](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)），
 进入最新一次成功构建，下载 `fastype-windows-amd64` 产物，解压即可（需登录 GitHub）。
 
