@@ -3,18 +3,14 @@
 [![build](https://github.com/xiongyihui/fastype/actions/workflows/build.yml/badge.svg)](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)
 
 **fastype** 是一个 Windows 键盘增强工具：让普通键盘学会「长按」与「分层」。
-不用换键盘、不用刷固件、不用改打字习惯，把方向键、快捷键这些最常用的功能搬到手边，
-敲键盘——尤其是写代码——更快、更省力。
+不用换键盘、不用刷固件、不用改打字习惯，把方向键、快捷键这些最常用的功能搬到手边，让写代码更快、更省力。
 
 ## 设计理念
 
-数一数你写代码时右手离开主键区的次数：够方向键、够 Home/End、够翻页键，
-小拇指一次次压向角落里的 Ctrl……
+数一数你写代码时右手离开主键区的次数：够方向键、够 Home/End、够翻页键，小拇指一次次压向角落里的 Ctrl……
 
-fastype 的设计源自研究 60% 键盘按键方案时发现（参考了 TMK 的 Layers 设计与 Jason Rudolph 的
-[Toward a more useful keyboard](https://github.com/jasonrudolph/keyboard)），
-普通键盘只需要 **长按**、**组合键**、**层** 三种机制，就能覆盖绝大多数效率需求——
-让手始终停留在 ASDF / HJKL 附近，不再往返奔波。
+fastype 的设计，源自研究 60% 键盘按键方案时的发现：普通键盘只需要 **长按**、**组合键**、**层** 三种机制，就能覆盖绝大多数效率需求——
+让手始终停留在 ASDF / HJKL 附近，类似VIM。
 
 - **长按（Tap-Hold）**：一个键，点按是它自己，长按变成别的功能（切层或按住修饰键）
 - **组合键**：把任意物理键映射成另一个键或组合键，如 `p` → `Shift+Insert`（粘贴）
@@ -36,32 +32,30 @@ fastype 的设计源自研究 60% 键盘按键方案时发现（参考了 TMK �
 | 长按 <kbd>'</kbd> | 按住 Alt |
 | 长按 <kbd>CapsLock</kbd> | 按住 Ctrl（点按仍是原 CapsLock） |
 
-换句话说：**按住 d 就进入一层临时导航层**，编辑代码时手不离主键区就能移动光标、翻页、
-跳行首行尾；**长按分号就是 Ctrl**，复制粘贴不再需要小拇指下探。而快速点按时所有键
-保持原功能——你原有的打字习惯完全不受影响。
++ **按住 d 就进入一层临时导航层**，编辑代码时手不离主键区就能移动光标、翻页、跳行首行尾；
++ **长按分号就是 Ctrl**，复制粘贴不再需要小拇指下探。
+
+而快速点按时所有键保持原功能——你原有的打字习惯完全不受影响。
 
 点按与长按的判定阈值默认 500ms，可在配置界面调整。
 
 ## 上手三步
 
-还没有 `fastype.exe`？正式版到 [Releases](https://github.com/xiongyihui/fastype/releases)
-下载（无需登录）；或点击顶部的 build 徽章（或直接打开
-[Actions 构建页](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)），
-进入最新一次成功构建，下载 `fastype-windows-amd64` 产物，解压即可（需登录 GitHub）。
+正式版到 [Releases](https://github.com/xiongyihui/fastype/releases) 下载；或打开
+[Actions 构建页](https://github.com/xiongyihui/fastype/actions/workflows/build.yml)）下载最新一次成功构建 `fastype-windows-amd64` 产物。
 
 1. **运行** `fastype.exe`（首次运行自动生成 `config.json`）
 2. 屏幕右下角出现**托盘图标**：双击打开配置页面，右键可 打开配置 / 暂停映射 / 开机自启 / 退出
-3. 浏览器访问 `http://127.0.0.1:8765/`（仅监听本机），可视化编辑你的键盘
+3. 浏览器访问 `http://127.0.0.1:8765/` ，可视化编辑你的键盘
 
-开机自启：托盘右键菜单点「**开机自启**」即可一键开启/关闭（写入当前用户注册表 Run 键，
-无需管理员）；也可以手动把 `fastype.exe` 的快捷方式放进 `shell:startup` 文件夹
+开机自启：托盘右键菜单点「**开机自启**」即可一键开启/关闭；也可以手动把 `fastype.exe` 的快捷方式放进 `shell:startup` 文件夹
 （Win+R 输入 `shell:startup` 回车即达）。
 
 ## 可视化配置界面
 
 ![fastype Web 配置界面](docs/webui.png)
 
-配置页面采用Web UI可视化键盘，所见即所得：
+配置页面采用Web UI可视化键盘：
 
 - 点击任意**键帽**，在侧边面板编辑它在当前层的映射
 - 绑定按键不用打名字——点击输入框后**直接按键盘**捕获，修饰键（Ctrl/Alt/Shift/Win）
@@ -136,7 +130,7 @@ go build -ldflags "-X main.debugDefault=1" -o dist\fastype-debug.exe .
 
 ## 来源与致谢
 
-- 设计理念源自 [xiongyihui/keyboard](https://github.com/xiongyihui/keyboard)
+- 设计理念源自 [keyboard](https://github.com/xiongyihui/keyboard)
 - [TMK](https://github.com/tmk/tmk_keyboard) 的 Layers 设计
 - Jason Rudolph 的 [Toward a more useful keyboard](https://github.com/jasonrudolph/keyboard)
 - [QMK](https://qmk.fm) / [VIA](https://www.caniusevia.com) 社区——层语义与配置界面的灵感来源
