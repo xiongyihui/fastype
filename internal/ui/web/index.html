@@ -186,6 +186,42 @@
     background: var(--panel2); border: 1px solid var(--line);
     border-radius: var(--radius-s); padding: 10px; resize: vertical;
   }
+
+  /* ---------- 按键监控 ---------- */
+  .mon-holds { display: grid; gap: 8px; margin-top: 12px; }
+  .mon-row { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+  .mon-label { width: 96px; flex-shrink: 0; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips .none { color: var(--faint); font-size: 12px; }
+  .key-chip.sim { background: rgba(52,211,153,.12); color: var(--ok); }
+  .mon-meta {
+    display: flex; align-items: center; gap: 12px; margin-top: 6px;
+    font-size: 12px; color: var(--faint);
+  }
+  .mon-meta #monPausedTag { color: var(--warn); }
+  .mon-meta #monDrop { color: var(--warn); }
+  .mon-log-head {
+    display: flex; align-items: center; gap: 10px; margin-top: 14px;
+    font-size: 12px; color: var(--muted); font-weight: 600;
+  }
+  .mon-log {
+    margin-top: 8px; max-height: 230px; overflow-y: auto;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius-s);
+    padding: 8px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.8;
+  }
+  .mon-empty { color: var(--faint); }
+  .mon-line { display: flex; gap: 10px; white-space: nowrap; align-items: baseline; }
+  .mon-line .t { color: var(--faint); }
+  .mon-line .src {
+    width: 28px; text-align: center; border-radius: 4px; font-size: 11px; align-self: center;
+  }
+  .mon-line .src.real { background: var(--accent-soft); color: #aab8ff; }
+  .mon-line .src.sim { background: rgba(52,211,153,.12); color: var(--ok); }
+  .mon-line .k { color: var(--text); font-weight: 600; min-width: 72px; }
+  .mon-line .a { color: var(--muted); }
+  .mon-line .a.down { color: var(--ok); }
+  .mon-line .lay { color: var(--faint); }
+
   #toast {
     position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(90px);
     background: #222839; color: #fff; border: 1px solid var(--line); padding: 10px 22px;
@@ -240,6 +276,26 @@
       <summary data-i18n="testTitle">测试区</summary>
       <p class="hint" style="margin:0 0 6px" data-i18n="testHint">在这里试试映射效果（例如按住 <b style="color:var(--text)">d</b> 再按 <b style="color:var(--text)">h j k l</b>）：</p>
       <textarea id="testArea" data-i18n-ph="testPh" placeholder="点击这里开始输入…"></textarea>
+    </details>
+
+    <details class="card" id="monCard" open>
+      <summary data-i18n="monTitle">按键监控</summary>
+      <p class="hint" style="margin:12px 0 0" data-i18n="monHint">真实按键＝物理键盘事件；模拟按键＝fastype 注入的映射输出。在测试区打字即可实时观察。</p>
+      <div class="mon-holds">
+        <div class="mon-row"><span class="mon-label" data-i18n="monReal">真实按下</span><div class="chips" id="monReal"></div></div>
+        <div class="mon-row"><span class="mon-label" data-i18n="monSim">模拟按下</span><div class="chips" id="monSim"></div></div>
+      </div>
+      <div class="mon-meta">
+        <span id="monLayer"></span>
+        <span id="monPausedTag" hidden data-i18n="monPausedTag">已暂停：映射未生效，仅记录真实按键</span>
+        <span class="spacer"></span>
+        <span id="monDrop" hidden></span>
+      </div>
+      <div class="mon-log-head">
+        <span data-i18n="monLogHead">事件日志</span><span class="spacer"></span>
+        <button class="mini ghost" id="monClear" data-i18n="monClear">清空显示</button>
+      </div>
+      <div class="mon-log" id="monLog"><div class="mon-empty" data-i18n="monEmpty">等待按键事件…</div></div>
     </details>
   </div>
 
@@ -437,6 +493,18 @@ const I18N = {
     saveFail: '保存失败', saved: '已保存并即时生效 ✓',
     loadFail: '加载配置失败', opFail: '操作失败',
     mappingPaused: '映射已暂停', mappingResumed: '映射已恢复',
+    monTitle: '按键监控',
+    monHint: '真实按键＝物理键盘事件；模拟按键＝fastype 注入的映射输出。在测试区打字即可实时观察。',
+    monReal: '真实按下', monSim: '模拟按下',
+    monLayerNow: '当前层 {n}',
+    monPausedTag: '已暂停：映射未生效，仅记录真实按键',
+    monDropped: '日志缓冲溢出，已丢弃 {n} 条事件',
+    monLogHead: '事件日志', monClear: '清空显示',
+    monEmpty: '等待按键事件…', monCleared: '已清空，新事件会继续出现',
+    monSrcReal: '真实按键', monSrcSim: '模拟注入',
+    monCharReal: '真', monCharSim: '模',
+    monDown: '按下', monUp: '抬起',
+    monLayerTag: '层{n}', monLayerTip: '此事件发生时的活动层',
   },
   en: {
     running: 'Running', paused: 'Paused', waitingPerm: 'Waiting for permission', hookFail: 'Hook failed',
@@ -472,6 +540,18 @@ const I18N = {
     saveFail: 'Save failed', saved: 'Saved and applied ✓',
     loadFail: 'Failed to load config', opFail: 'Operation failed',
     mappingPaused: 'Mappings paused', mappingResumed: 'Mappings resumed',
+    monTitle: 'Key Monitor',
+    monHint: 'Real = physical key events; Simulated = mapped output injected by fastype. Type in the test area to watch it live.',
+    monReal: 'Real', monSim: 'Simulated',
+    monLayerNow: 'Layer {n}',
+    monPausedTag: 'Paused: mappings inactive, only real keys are logged',
+    monDropped: 'Log buffer overflow, {n} events dropped',
+    monLogHead: 'Event log', monClear: 'Clear display',
+    monEmpty: 'Waiting for key events…', monCleared: 'Cleared — new events will keep appearing',
+    monSrcReal: 'Real key', monSrcSim: 'Simulated (injected)',
+    monCharReal: 'R', monCharSim: 'S',
+    monDown: 'press', monUp: 'release',
+    monLayerTag: 'L{n}', monLayerTip: 'Active layer when this event occurred',
   },
 };
 
@@ -495,6 +575,8 @@ function applyLang() {
   refreshAll();
   selectKey(selectedKey);
   refreshStatus();
+  monRenderHolds();
+  monRenderMeta();
 }
 
 $('btnLang').onclick = () => {
@@ -839,6 +921,7 @@ async function refreshStatus() {
     $('statusPill').classList.toggle('paused', paused || waiting);
     $('btnPause').textContent = paused ? t('resumeBtn') : t('pauseBtn');
     $('versionHint').textContent = `v${j.version} · ${t('layersN', j.layers)}`;
+    monRenderMeta();
   } catch {}
 }
 
@@ -868,6 +951,134 @@ async function loadConfig() {
   $('tapTimeout').value = cfg.tap_timeout_ms;
   if (activeLayer >= cfg.layers.length) { activeLayer = 0; selectedKey = null; }
   refreshAll();
+}
+
+/* ================= 按键监控（真实/模拟按键事件流，SSE 实时推送） ================= */
+const mon = { real: [], sim: [], layer: 0, dropped: 0, limit: 300 };
+
+function monRenderHolds() {
+  const render = (el, names, sim) => {
+    el.innerHTML = '';
+    if (!names.length) {
+      const s = document.createElement('span');
+      s.className = 'none';
+      s.textContent = '—';
+      el.appendChild(s);
+      return;
+    }
+    for (const n of names) {
+      const c = document.createElement('span');
+      c.className = 'key-chip' + (sim ? ' sim' : '');
+      c.textContent = displayName(n);
+      el.appendChild(c);
+    }
+  };
+  render($('monReal'), mon.real, false);
+  render($('monSim'), mon.sim, true);
+  $('monLayer').textContent = t('monLayerNow', mon.layer);
+}
+
+function monRenderMeta() {
+  $('monPausedTag').hidden = !paused;
+  $('monDrop').hidden = !mon.dropped;
+  $('monDrop').textContent = mon.dropped ? t('monDropped', mon.dropped) : '';
+}
+
+function monTime(ms) {
+  const d = new Date(ms);
+  const p = (n, l = 2) => String(n).padStart(l, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
+}
+
+function monLine(e) {
+  const div = document.createElement('div');
+  div.className = 'mon-line';
+  const tm = document.createElement('span'); tm.className = 't'; tm.textContent = monTime(e.t);
+  const src = document.createElement('span');
+  src.className = 'src ' + (e.sim ? 'sim' : 'real');
+  src.textContent = e.sim ? t('monCharSim') : t('monCharReal');
+  src.title = e.sim ? t('monSrcSim') : t('monSrcReal');
+  const k = document.createElement('span'); k.className = 'k'; k.textContent = displayName(e.name);
+  const a = document.createElement('span');
+  a.className = 'a' + (e.down ? ' down' : '');
+  a.textContent = (e.down ? '↓ ' : '↑ ') + t(e.down ? 'monDown' : 'monUp');
+  div.append(tm, src, k, a);
+  if (!e.sim && e.layer > 0) {
+    const l = document.createElement('span');
+    l.className = 'lay';
+    l.textContent = t('monLayerTag', e.layer);
+    l.title = t('monLayerTip');
+    div.appendChild(l);
+  }
+  return div;
+}
+
+// 按事件维护"当前按住"列表（与服务端快照独立同源，语义一致）
+function monApply(e) {
+  const arr = e.sim ? mon.sim : mon.real;
+  const i = arr.indexOf(e.name);
+  if (e.down) {
+    if (i < 0) arr.push(e.name);
+  } else if (i >= 0) {
+    arr.splice(i, 1);
+  }
+  if (!e.sim && e.layer >= 0) mon.layer = e.layer;
+}
+
+function monSnapshot(s) {
+  mon.real = s.real_down || [];
+  mon.sim = s.sim_down || [];
+  mon.layer = s.layer || 0;
+  mon.dropped = s.dropped || 0;
+  const log = $('monLog');
+  log.innerHTML = '';
+  const entries = (s.entries || []).slice(-mon.limit); // 旧 → 新
+  for (let i = entries.length - 1; i >= 0; i--) log.appendChild(monLine(entries[i]));
+  if (!entries.length) {
+    const d = document.createElement('div');
+    d.className = 'mon-empty';
+    d.setAttribute('data-i18n', 'monEmpty');
+    d.textContent = t('monEmpty');
+    log.appendChild(d);
+  }
+  monRenderHolds();
+  monRenderMeta();
+}
+
+function monEvents(m) {
+  const es = m.e || [];
+  if (!es.length) return;
+  const log = $('monLog');
+  const empty = log.querySelector('.mon-empty');
+  if (empty) empty.remove();
+  for (const e of es) log.insertBefore(monLine(e), log.firstChild); // 新事件在最上面
+  while (log.children.length > mon.limit) log.removeChild(log.lastChild);
+  for (const e of es) monApply(e);
+  if (typeof m.layer === 'number') mon.layer = m.layer;
+  monRenderHolds();
+}
+
+$('monClear').onclick = () => {
+  const log = $('monLog');
+  log.innerHTML = '';
+  const d = document.createElement('div');
+  d.className = 'mon-empty';
+  d.setAttribute('data-i18n', 'monCleared');
+  d.textContent = t('monCleared');
+  log.appendChild(d);
+};
+
+monRenderHolds();
+monRenderMeta();
+if ('EventSource' in window) {
+  // 断线由 EventSource 自动重连，重连后服务端会先重发全量快照
+  const es = new EventSource('/api/keylog/stream');
+  es.onmessage = ev => {
+    let m;
+    try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === 'snapshot') monSnapshot(m.snapshot);
+    else if (m.type === 'events') monEvents(m);
+  };
 }
 
 loadConfig().catch(e => toast(t('loadFail') + ': ' + e, true));

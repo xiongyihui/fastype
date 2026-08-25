@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"fastype/internal/engine"
+	"fastype/internal/keylog"
 	"fastype/internal/keys"
 )
 
@@ -79,6 +80,7 @@ func sendEffects(fx []engine.Effect) {
 	if len(fx) == 0 {
 		return
 	}
+	now := time.Now()
 	inputs := make([]inputEvent, len(fx))
 	for i, f := range fx {
 		var fl uint32
@@ -89,6 +91,7 @@ func sendEffects(fx []engine.Effect) {
 			fl |= keyeventfExtendedKey
 		}
 		inputs[i] = inputEvent{typ: inputKeyboard, ki: keybdInput{wVk: uint16(f.VK), dwFlags: fl}}
+		keylog.Record(true, f.VK, f.Down, -1, now)
 	}
 	pSendInput.Call(uintptr(len(inputs)), uintptr(unsafe.Pointer(&inputs[0])), unsafe.Sizeof(inputs[0]))
 }
@@ -114,14 +117,17 @@ func keyboardHookProc(nCode int32, wParam uintptr, lParamPtr unsafe.Pointer) uin
 	if vk == 0 {
 		return next()
 	}
+	ev := engine.Event{VK: vk, Down: wParam == wmKeyDown || wParam == wmSysKeyDown, T: time.Now()}
 	if pausedFlag.Load() {
+		keylog.Record(false, vk, ev.Down, -1, ev.T) // 暂停期间仍记录真实按键（无层信息）
 		return next()
 	}
 
-	ev := engine.Event{VK: vk, Down: wParam == wmKeyDown || wParam == wmSysKeyDown, T: time.Now()}
 	engineMu.Lock()
 	suppressed, fx := eng.OnEvent(ev)
+	layer := eng.Layer
 	engineMu.Unlock()
+	keylog.Record(false, vk, ev.Down, layer, ev.T)
 
 	if dryRun {
 		return next()

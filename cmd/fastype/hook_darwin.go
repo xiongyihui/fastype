@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fastype/internal/engine"
+	"fastype/internal/keylog"
 	"fastype/internal/keys"
 	"fastype/internal/machook"
 )
@@ -15,12 +16,17 @@ func startHook() error {
 	machook.DryRun = dryRun
 	machook.Logf = logf
 	return machook.Start(func(vk keys.VK, down bool) (bool, []engine.Effect) {
+		t := time.Now()
 		if pausedFlag.Load() {
+			keylog.Record(false, vk, down, -1, t) // 暂停期间仍记录真实按键（无层信息）
 			return false, nil
 		}
 		engineMu.Lock()
-		defer engineMu.Unlock()
-		return eng.OnEvent(engine.Event{VK: vk, Down: down, T: time.Now()})
+		suppressed, fx := eng.OnEvent(engine.Event{VK: vk, Down: down, T: t})
+		layer := eng.Layer
+		engineMu.Unlock()
+		keylog.Record(false, vk, down, layer, t)
+		return suppressed, fx
 	})
 }
 

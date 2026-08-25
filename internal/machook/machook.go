@@ -26,9 +26,11 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"fastype/internal/engine"
+	"fastype/internal/keylog"
 	"fastype/internal/keys"
 )
 
@@ -265,7 +267,9 @@ func postEffects(fx []engine.Effect) {
 	if cSrcIsNull(s) {
 		return
 	}
+	now := time.Now()
 	for _, f := range fx {
+		keylog.Record(true, f.VK, f.Down, -1, now)
 		kc, ok := keycodeOfVK(f.VK)
 		if !ok {
 			if Logf != nil {

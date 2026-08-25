@@ -10,6 +10,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"fastype/internal/keylog"
 )
 
 //go:embed web/index.html
@@ -52,6 +54,12 @@ func Start(basePort uint16, h Handler) (uint16, error) {
 		writeJSON(w, http.StatusOK, h.Status())
 	})
 	mux.HandleFunc("/api/pause", func(w http.ResponseWriter, r *http.Request) { handlePause(w, r, h) })
+	mux.HandleFunc("/api/keylog", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, keylog.Snapshot())
+	})
+	mux.HandleFunc("/api/keylog/stream", func(w http.ResponseWriter, r *http.Request) {
+		handleKeyLogStream(w, r)
+	})
 
 	httpSrv = &http.Server{Handler: mux}
 	go httpSrv.Serve(ln)
@@ -122,4 +130,68 @@ func handlePause(w http.ResponseWriter, r *http.Request, h Handler) {
 		return
 	}
 	writeJSON(w, http.StatusOK, h.SetPaused(body.Paused))
+}
+
+// handleKeyLogStream 以 SSE 推送按键事件流：连接先发全量快照，之后按 seq 水位增量推送。
+// 通知信号丢失（多事件合并）没关系，各连接有 500ms 定时器兜底轮询水位。
+func handleKeyLogStream(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "当前连接不支持流式响应")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream; charset=utf-8")
+	h.Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+
+	send := func(v any) bool {
+		b, err := json.Marshal(v)
+		if err == nil {
+			_, err = io.WriteString(w, "data: "+string(b)+"\n\n")
+		}
+		if err != nil {
+			return false // 客户端已断开
+		}
+		flusher.Flush()
+		return true
+	}
+	sendSnapshot := func() (uint64, bool) {
+		snap := keylog.Snapshot()
+		if !send(map[string]any{"type": "snapshot", "snapshot": snap}) {
+			return 0, false
+		}
+		return snap.LastSeq, true
+	}
+
+	last, ok := sendSnapshot()
+	if !ok {
+		return
+	}
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-keylog.Notify():
+		case <-ticker.C:
+		}
+		ents := keylog.EntriesAfter(last)
+		if len(ents) == 0 {
+			continue
+		}
+		if ents[0].Seq != last+1 {
+			// 环形缓冲已越过水位（消费太慢）：重发快照对齐
+			if last, ok = sendSnapshot(); !ok {
+				return
+			}
+			continue
+		}
+		last = ents[len(ents)-1].Seq
+		if !send(map[string]any{"type": "events", "e": ents, "layer": keylog.CurrentLayer()}) {
+			return
+		}
+	}
 }

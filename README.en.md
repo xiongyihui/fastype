@@ -110,6 +110,9 @@ switch **Chinese/English** at the top-right; the tray menu follows the Windows d
 - If a mapping gets in the way while editing, hit **Pause** at the top-right and
   resume when done
 - A built-in **test area** lets you try mappings right away
+- A built-in **key monitor** shows currently held real keys and simulated
+  (injected) keys in real time, plus a scrolling event log (recorded
+  asynchronously, never blocking key processing)
 
 ## Three Mapping Types
 
