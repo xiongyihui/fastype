@@ -7,20 +7,25 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestInsideAppBundle(t *testing.T) {
+	// insideAppBundle 用平台路径分隔符匹配，用例同样以当前平台分隔符构造，
+	// 保证 Windows CI 上也能验证匹配逻辑本身。
+	sep := string(filepath.Separator)
+	join := func(parts ...string) string { return strings.Join(parts, sep) }
 	cases := []struct {
 		path string
 		want bool
 	}{
-		{"/Applications/Fastype.app/Contents/MacOS/fastype", true},
-		{"~/Applications/Fastype.app/Contents/MacOS/fastype", true}, // ~ 展开后仍含 .app/ 与 Contents/MacOS/
-		{"/usr/local/bin/fastype", false},
-		{"/tmp/build/Fastype.app/Contents/MacOS/fastype/", true},
-		{"/x/Contents/MacOS/y", false},           // 无 .app
-		{"/x/Fastype.app/Contents/bin/y", false}, // 无 Contents/MacOS 段
+		{join("Applications", "Fastype.app", "Contents", "MacOS", "fastype"), true},
+		{join("Users", "y", "Applications", "Fastype.app", "Contents", "MacOS", "fastype"), true},
+		{join("usr", "local", "bin", "fastype"), false},
+		{join("tmp", "Fastype.app", "Contents", "MacOS", "fastype") + sep, true},
+		{join("x", "Contents", "MacOS", "y"), false},              // 无 .app
+		{join("x", "Fastype.app", "Contents", "bin", "y"), false}, // 无 Contents/MacOS 段
 	}
 	for _, c := range cases {
 		if got := insideAppBundle(c.path); got != c.want {
