@@ -32,12 +32,16 @@ type Handler interface {
 var httpSrv *http.Server
 
 // Start 在 basePort 起的本机回环端口上提供 Web UI，端口被占用时自动 +1 递增。
+// basePort 为 0 时由系统分配空闲端口。
 func Start(basePort uint16, h Handler) (uint16, error) {
 	var ln net.Listener
 	port := int(basePort)
 	for i := 0; i < 50; i++ {
 		p := int(basePort) + i
 		if l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p)); err == nil {
+			if p == 0 {
+				p = l.Addr().(*net.TCPAddr).Port
+			}
 			ln = l
 			port = p
 			break
@@ -47,6 +51,13 @@ func Start(basePort uint16, h Handler) (uint16, error) {
 		return 0, fmt.Errorf("监听 127.0.0.1:%d 起的连续端口均失败", basePort)
 	}
 
+	httpSrv = &http.Server{Handler: newMux(h)}
+	go httpSrv.Serve(ln)
+	log.Printf("Web 配置界面: http://127.0.0.1:%d/", port)
+	return uint16(port), nil
+}
+
+func newMux(h Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { handleIndex(w, r) })
 	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) { handleConfig(w, r, h) })
@@ -60,11 +71,7 @@ func Start(basePort uint16, h Handler) (uint16, error) {
 	mux.HandleFunc("/api/keylog/stream", func(w http.ResponseWriter, r *http.Request) {
 		handleKeyLogStream(w, r)
 	})
-
-	httpSrv = &http.Server{Handler: mux}
-	go httpSrv.Serve(ln)
-	log.Printf("Web 配置界面: http://127.0.0.1:%d/", port)
-	return uint16(port), nil
+	return mux
 }
 
 // Stop 关闭 Web UI 服务。

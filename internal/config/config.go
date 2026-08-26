@@ -64,7 +64,8 @@ type HoldJSON struct {
 	Mods  stringList `json:"mods,omitempty"`
 }
 
-// stringList 接受 ["ctrl","shift"] 或 "ctrl+shift" 两种写法。
+// stringList 接受 ["ctrl","shift"] 或 "ctrl+shift" 两种写法，
+// 两种写法同样做去空格与小写归一化。
 type stringList []string
 
 func (s *stringList) UnmarshalJSON(b []byte) error {
@@ -77,7 +78,14 @@ func (s *stringList) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &arr); err != nil {
 		return fmt.Errorf("应为按键名数组或 \"a+b\" 形式的字符串")
 	}
-	*s = arr
+	out := make([]string, 0, len(arr))
+	for _, p := range arr {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	*s = out
 	return nil
 }
 
