@@ -15,9 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 不用 go-version-file: go.mod（1.22）：macOS 26 的 dyld 要求二进制带
+      # LC_UUID，Go 1.24 起链接器才会生成，旧工具链的 go test 产物直接 abort。
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          cache: false # 无外部依赖（无 go.sum），缓存恢复只会报错
 
       - name: Test
         run: go test ./...
@@ -55,7 +58,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          cache: false
 
       - name: Test
         run: go test ./...
